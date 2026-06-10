@@ -190,8 +190,4 @@ The typical workflow is:
 5. Export the selected model.
 6. Deploy the model using the standalone prediction engine.
 
----
 
-# Citation
-
-If you use this repository in academic work, please cite the corresponding publication.
