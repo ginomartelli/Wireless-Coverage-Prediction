@@ -10,7 +10,6 @@ import matplotlib.pyplot as plt
 import os
 import contextily as ctx
 import geopandas as gpd
-from shapely.geometry import Point
 
 from build_gateways_dataset import build_gateways_dataset
 from build_reference_dataset import build_reference_dataset
@@ -26,6 +25,8 @@ MODEL_TYPE = "extra_trees"
 SHOW_PLOTS =True
 SAVE_DATA_WITH_FEATURES =False
 PREDICT = False
+BUILD_REF = False
+BUILD_GW = False
 
 def main():
     if(os.path.exists(DATA_PATH) and not FORCE_FETCH):
@@ -98,17 +99,28 @@ def main():
             index=False
         )
         print("Features added and data saved!")
-
+    if BUILD_REF:
+        print("Building reference dataset...")
+        build_reference_dataset(df)
+    if BUILD_GW:
+        print("Building gateways dataset...")
+        build_gateways_dataset(df)
     if(PREDICT or SHOW_PLOTS):
         print("Predicting...")
         df["predicted_rssi"] = predict(df, model_type=MODEL_TYPE, reference_df=df)
         df["error"] = df["rssi"] - df["predicted_rssi"]
         df["abs_error"] = np.abs(df["error"])
 
-    if(SHOW_PLOTS):
+    if SHOW_PLOTS:
+
         print("Showing plots...")
-        df_danang = df[df["lat"] < 18]
-        df_haiphong = df[df["lat"] > 18]
+
+        df_danang = df[df["lat"] < 18].copy()
+        df_haiphong = df[df["lat"] > 18].copy()
+
+        # =====================================================
+        # DA NANG - POINTS
+        # =====================================================
 
         gdf = gpd.GeoDataFrame(
             df_danang,
@@ -117,11 +129,7 @@ def main():
                 df_danang.lat
             ),
             crs="EPSG:4326"
-        )
-
-        gdf = gdf.to_crs(
-            epsg=3857
-        )
+        ).to_crs(epsg=3857)
 
         fig, ax = plt.subplots(
             figsize=(12, 10)
@@ -131,9 +139,38 @@ def main():
             ax=ax,
             column="abs_error",
             cmap="inferno",
-            markersize=10,
-            alpha=0.6,
-            legend=True
+            markersize=30,
+            alpha=0.2,
+            legend=True,
+            vmin=0,
+            vmax=8
+        )
+
+        gateways = (
+            df_danang
+            .groupby("gateway")
+            .first()
+            .reset_index()[
+                ["gateway", "gw_lat", "gw_lon"]
+            ]
+        )
+
+        gw_gdf = gpd.GeoDataFrame(
+            gateways,
+            geometry=gpd.points_from_xy(
+                gateways.gw_lon,
+                gateways.gw_lat
+            ),
+            crs="EPSG:4326"
+        ).to_crs(epsg=3857)
+
+        gw_gdf.plot(
+            ax=ax,
+            marker="^",
+            color="green",
+            markersize=80,
+            alpha=0.7,
+            label="Gateway"
         )
 
         ctx.add_basemap(
@@ -141,12 +178,69 @@ def main():
             source=ctx.providers.OpenStreetMap.Mapnik
         )
 
+        ax.legend()
         ax.set_title(
             "Da Nang RSSI Prediction Error"
         )
 
+        ax.set_axis_off()
+
         plt.show()
 
+        # =====================================================
+        # DA NANG - HEXBIN
+        # =====================================================
+
+        fig, ax = plt.subplots(
+            figsize=(12, 10)
+        )
+
+        hb = ax.hexbin(
+            gdf.geometry.x,
+            gdf.geometry.y,
+            C=np.abs(df_danang["error"]),
+            reduce_C_function=np.mean,
+            gridsize=75,
+            mincnt=1,
+            vmax=4
+        )
+
+        gw_gdf.plot(
+            ax=ax,
+            marker="^",
+            color="red",
+            markersize=60,
+            alpha=0.7,
+            label="Gateway"
+        )
+
+        ctx.add_basemap(
+            ax,
+            source=ctx.providers.OpenStreetMap.Mapnik
+        )
+
+        cbar = plt.colorbar(
+            hb,
+            ax=ax
+        )
+
+        cbar.set_label(
+            "Mean Absolute Error (dBm)"
+        )
+
+        ax.legend()
+
+        ax.set_title(
+            "Da Nang RSSI Prediction Error Heatmap"
+        )
+
+        ax.set_axis_off()
+
+        plt.show()
+
+        # =====================================================
+        # HAI PHONG - POINTS
+        # =====================================================
 
         gdf = gpd.GeoDataFrame(
             df_haiphong,
@@ -155,23 +249,45 @@ def main():
                 df_haiphong.lat
             ),
             crs="EPSG:4326"
-        )
-
-        gdf = gdf.to_crs(
-            epsg=3857
-        )
+        ).to_crs(epsg=3857)
 
         fig, ax = plt.subplots(
-            figsize=(12,10)
+            figsize=(12, 10)
         )
 
         gdf.plot(
             ax=ax,
             column="abs_error",
             cmap="inferno",
-            markersize=10,
-            alpha=0.6,
-            legend=True
+            markersize=15,
+            alpha=0.7,
+            legend=True,
+            vmin=0,
+            vmax=8
+        )
+
+        gateways = (
+            df_haiphong[
+                ["gateway", "gw_lat", "gw_lon"]
+            ]
+            .drop_duplicates()
+        )
+
+        gw_gdf = gpd.GeoDataFrame(
+            gateways,
+            geometry=gpd.points_from_xy(
+                gateways.gw_lon,
+                gateways.gw_lat
+            ),
+            crs="EPSG:4326"
+        ).to_crs(epsg=3857)
+
+        gw_gdf.plot(
+            ax=ax,
+            marker="^",
+            color="cyan",
+            markersize=120,
+            label="Gateway"
         )
 
         ctx.add_basemap(
@@ -179,10 +295,67 @@ def main():
             source=ctx.providers.OpenStreetMap.Mapnik
         )
 
+        ax.legend()
+
         ax.set_title(
             "Hai Phong RSSI Prediction Error"
         )
 
+        ax.set_axis_off()
+
         plt.show()
+
+        # =====================================================
+        # HAI PHONG - HEXBIN
+        # =====================================================
+
+        fig, ax = plt.subplots(
+            figsize=(12, 10)
+        )
+
+        hb = ax.hexbin(
+            gdf.geometry.x,
+            gdf.geometry.y,
+            C=np.abs(df_haiphong["error"]),
+            reduce_C_function=np.mean,
+            gridsize=75,
+            mincnt=1,
+            vmax=4
+        )
+
+        gw_gdf.plot(
+            ax=ax,
+            marker="^",
+            color="red",
+            markersize=60,
+            alpha=0.7,
+            label="Gateway"
+        )
+
+        ctx.add_basemap(
+            ax,
+            source=ctx.providers.OpenStreetMap.Mapnik
+        )
+
+        cbar = plt.colorbar(
+            hb,
+            ax=ax
+        )
+
+        cbar.set_label(
+            "Mean Absolute Error (dBm)"
+        )
+
+        ax.legend()
+
+        ax.set_title(
+            "Hai Phong RSSI Prediction Error Heatmap"
+        )
+
+        ax.set_axis_off()
+
+        plt.show()
+
+
 if __name__ == "__main__":
     main()
