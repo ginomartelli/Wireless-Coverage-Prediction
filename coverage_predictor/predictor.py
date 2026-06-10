@@ -3,6 +3,7 @@ from joblib import load
 from feature_builder import build_features
 
 MODEL = load("model/extra_trees_model.pkl")
+print("Model loaded successfully.")
 
 def predict(
     lat: float,

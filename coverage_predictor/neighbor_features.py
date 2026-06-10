@@ -144,7 +144,12 @@ def compute_neighbor_features(
     w = np.exp(
         -dist / 30
     )
-
+    if np.sum(w) < 1e-12:
+        neighbor_rssi_weighted_mean = -120
+    else:
+        neighbor_rssi_weighted_mean = np.sum(
+            w * rssi
+        ) / np.sum(w)
     return {
 
         "rssi_closest_point":
@@ -160,11 +165,7 @@ def compute_neighbor_features(
             np.mean(rssi),
 
         "neighbor_rssi_weighted_mean":
-            np.sum(
-                rssi * w
-            )
-            /
-            np.sum(w),
+            neighbor_rssi_weighted_mean,
 
         "neighbor_rssi_std":
             np.std(rssi),
