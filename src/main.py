@@ -22,11 +22,11 @@ FORCE_FETCH = False
 ADD_FEATURES = False
 TRAIN =False
 MODEL_TYPE = "extra_trees"
-SHOW_PLOTS =True
+SHOW_PLOTS =False
 SAVE_DATA_WITH_FEATURES =False
 PREDICT = False
 BUILD_REF = False
-BUILD_GW = False
+BUILD_GW = True
 
 def main():
     if(os.path.exists(DATA_PATH) and not FORCE_FETCH):
@@ -101,10 +101,10 @@ def main():
         print("Features added and data saved!")
     if BUILD_REF:
         print("Building reference dataset...")
-        build_reference_dataset(df)
+        build_reference_dataset()
     if BUILD_GW:
         print("Building gateways dataset...")
-        build_gateways_dataset(df)
+        build_gateways_dataset()
     if(PREDICT or SHOW_PLOTS):
         print("Predicting...")
         df["predicted_rssi"] = predict(df, model_type=MODEL_TYPE, reference_df=df)

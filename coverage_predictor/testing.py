@@ -17,7 +17,7 @@ LAT_MAX = 16.12
 LON_MIN = 108.08
 LON_MAX = 108.32
 
-STEP = 0.1   # ~500 m
+STEP = 0.05   # ~500 m
 
 # --------------------
 # Grid generation

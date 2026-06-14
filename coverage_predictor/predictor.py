@@ -31,12 +31,14 @@ def predict(
     if spreading_factor is None:
         spreading_factor = 7
 
-    X = build_features(
+    features = build_features(
         lat=lat,
         lon=lon,
         gateway=gateway,
         frequency=frequency,
-        spreading_factor=spreading_factor
-    )
+        spreading_factor=spreading_factor)
 
-    return float(MODEL.predict(X)[0])
+    if isinstance(features, (float, int)):
+        return float(features)
+
+    return float(MODEL.predict(features)[0])

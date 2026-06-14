@@ -24,7 +24,25 @@ K = 9
 K_SEARCH = 11
 GW_DISTANCE_WEIGHT = 1.1
 
+REFERENCE_COORDS = np.column_stack([
+    REFERENCE["lat"].values * LAT_TO_M,
+    REFERENCE["lon"].values * LON_TO_M,
+])
 
+REFERENCE_TREE = cKDTree(
+    REFERENCE_COORDS
+)
+
+def closest_reference_point(lat, lon):
+
+    point = np.array([
+        lat * LAT_TO_M,
+        lon * LON_TO_M,
+    ])
+
+    dist, idx = REFERENCE_TREE.query(point)
+
+    return REFERENCE.iloc[idx], dist
 TREES = {}
 
 for gw in REFERENCE["gateway"].unique():
