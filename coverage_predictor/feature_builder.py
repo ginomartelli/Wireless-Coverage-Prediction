@@ -52,7 +52,7 @@ def build_features(
 ):
 
     ref, dist = closest_reference_point(lat, lon)
-    if dist < 30:
+    if dist <= 150:
         return ref["rssi"]
     # -------------------------
     # Gateway selection
