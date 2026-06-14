@@ -1,5 +1,5 @@
 from joblib import load
-
+from numbers import Number
 from feature_builder import build_features
 
 MODEL = load("model/extra_trees_model.pkl")
@@ -38,7 +38,7 @@ def predict(
         frequency=frequency,
         spreading_factor=spreading_factor)
 
-    if isinstance(features, (float, int)):
+    if isinstance(features, Number):
         return float(features)
 
     return float(MODEL.predict(features)[0])

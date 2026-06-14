@@ -17,40 +17,29 @@ LAT_MAX = 16.12
 LON_MIN = 108.08
 LON_MAX = 108.32
 
-STEP = 0.05   # ~500 m
+STEP = 0.001   # ~500 m
 
 # --------------------
 # Grid generation
 # --------------------
 
 points = []
+lat_vals = np.arange(LAT_MIN, LAT_MAX, STEP)
+lon_vals = np.arange(LON_MIN, LON_MAX, STEP)
 
-for lat in np.arange(
-    LAT_MIN,
-    LAT_MAX,
-    STEP
-):
+total = len(lat_vals) * len(lon_vals)
+count = 0
 
-    for lon in np.arange(
-        LON_MIN,
-        LON_MAX,
-        STEP
-    ):
-
-        rssi = predictor.predict(
-            lat,
-            lon
-        )
-        print(f"Predicted RSSI at ({lat:.4f}, {lon:.4f}): {rssi:.2f} dBm")
-        points.append(
-            {
-                "lat": lat,
-                "lon": lon,
-                "rssi": rssi
-            }
-        )
+for lat in lat_vals:
+    for lon in lon_vals:
+        rssi = predictor.predict(lat, lon)
+        count += 1
+        percent = count / total * 100
+        print(f"[{count}/{total}] {percent:.1f}% - Predicted RSSI at ({lat:.4f}, {lon:.4f}): {rssi:.2f} dBm")
+        points.append({"lat": lat, "lon": lon, "rssi": rssi})
 
 df = pd.DataFrame(points)
+df.to_csv("predicted_coverage.csv", index=False)
 
 print(df.head())
 
