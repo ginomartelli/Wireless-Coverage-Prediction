@@ -1,0 +1,68 @@
+# =============================================================================
+# Wireless Coverage Prediction — Docker Compose
+# =============================================================================
+# Usage:
+#   docker-compose build        Build all images
+#   docker-compose run inference  Run a quick smoke test
+#   docker-compose run train      Run the full training pipeline
+# =============================================================================
+
+services:
+  # ---------------------------------------------------------------------------
+  # Inference Service
+  # ---------------------------------------------------------------------------
+  # Lightweight service that loads the pre-trained model and geospatial assets,
+  # then provides the predict(lat, lon) interface.
+  #
+  # Mount requirements:
+  #   - terrain/ directory with DEM *.tif and landuse *.geojson files
+  # ---------------------------------------------------------------------------
+  inference:
+    build:
+      context: .
+      target: inference
+      dockerfile: Dockerfile
+    image: wireless-coverage-inference:latest
+    container_name: coverage-inference
+    volumes:
+      # Geospatial rasters and land-use polygons (dem.tif, dem2.tif, landuse.geojson, landuse2.geojson)
+      - ./data/terrain:/app/coverage_predictor/data/terrain:ro
+    environment:
+      - PYTHONDONTWRITEBYTECODE=1
+      - PYTHONUNBUFFERED=1
+    env_file:
+      - .env
+    # Note: omit env_file if you don't need ChirpStack API access for inference
+    command: >
+      sh -c "
+        python -c 'from predictor import predict; print(\"✔ Inference engine ready.\"); print(predict(16.0735, 108.1512))'
+      "
+
+  # ---------------------------------------------------------------------------
+  # Training Service
+  # ---------------------------------------------------------------------------
+  # Full pipeline that:
+  #   1. Fetches device history from ChirpStack API
+  #   2. Parses and cleans raw measurements
+  #   3. Engineers features (geometry, terrain, nearest-neighbor)
+  #   4. Trains and cross-validates the Extra Trees model
+  #   5. Serialises the final model to ml/models/
+  #
+  # Mount requirements:
+  #   - processed/ directory for saving CSV outputs
+  #   - terrain/ directory with DEM and land-use files
+  #   - raw/ directory for API cache files
+  # ---------------------------------------------------------------------------
+  train:
+    build:
+      context: .
+      target: training
+      dockerfile: Dockerfile
+    image: wireless-coverage-training:latest
+    container_name: coverage-training
+    volumes:
+      - ./data/processed:/app/data/processed
+      - ./data/terrain:/app/data/terrain:ro
+      - ./data/raw:/app/data/raw
+    env_file:
+      - .env

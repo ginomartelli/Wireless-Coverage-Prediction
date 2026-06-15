@@ -1,0 +1,31 @@
+# Git
+.git
+.gitignore
+.gitattributes
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg-info/
+.venv/
+.venv*/
+
+# Environment
+.env
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Project-specific
+text.md
+predicted_coverage.csv
+
+# Large data files (mounted as volumes, not copied)
+**/*.tif
+**/*.tiff
+**/*.geojson
