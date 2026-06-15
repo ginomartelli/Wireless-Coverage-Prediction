@@ -7,7 +7,7 @@ name = "wireless-coverage-prediction"
 version = "1.0.0"
 description = "LoRaWAN Wireless Coverage Prediction — ML system for predicting RSSI across any geographic location"
 readme = "README.md"
-requires-python = ">=3.11"
+requires-python = ">=3.12"
 license = { text = "MIT" }
 authors = [
     { name = "Wireless Coverage Team" },
@@ -15,7 +15,7 @@ authors = [
 keywords = ["lorawan", "rssi", "coverage", "ml", "extra-trees", "geospatial"]
 classifiers = [
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
     "License :: OSI Approved :: MIT License",
     "Topic :: Scientific/Engineering :: Artificial Intelligence",
     "Topic :: Communications :: Ham Radio",

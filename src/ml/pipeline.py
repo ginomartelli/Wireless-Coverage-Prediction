@@ -9,7 +9,6 @@ from sklearn.preprocessing import (
 )
 
 from sklearn.impute import SimpleImputer
-from sklearn.ensemble import RandomForestRegressor
 
 from processing.features import add_closest_point_features
 
@@ -76,13 +75,16 @@ NUMERIC_FEATURES = [
     # "forest_ratio", // distribution too low to be useful
     # "water_ratio", // distribution too low to be useful
     "residential_ratio",
-    # "unknown_ratio", //arleady in residential ratio
+    # "unknown_ratio",
+
+    # Gateway-fallback indicator (1.0 when gateway ID was not seen during training)
+    "gateway_unknown",
 ]
 
 CATEGORICAL_FEATURES = [
-    "gateway", #train in danang and test in hai phong so useless in that case 
-    # "device", #same idea : not specific to propagation (and not available at prediction time ?)
-    # "terrain_type", //low importance
+    "gateway",
+    # "device",
+    # "terrain_type",
 ]
 
 def build_pipeline(model_type="random_forest"):

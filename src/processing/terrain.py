@@ -1,3 +1,6 @@
+import sys
+import os
+
 import rasterio
 import numpy as np
 import pandas as pd
@@ -6,15 +9,20 @@ from shapely.geometry import Point
 
 from collections import Counter
 
-dem = rasterio.open("../data/terrain/dem.tif")
-dem2 = rasterio.open("../data/terrain/dem2.tif")
+# ── Configuration ──
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
+from config_loader import config  # noqa: E402
 
-terrain = gpd.read_file(
-    "../data/terrain/landuse.geojson"
-)
-terrain2 = gpd.read_file(
-    "../data/terrain/landuse2.geojson"
-)
+TRN = config["paths"]["training"]
+RADIO = config["radio"]
+PATH = config["path_profile"]
+ANT = config["antenna"]
+
+dem = rasterio.open(TRN["dem_tif"])
+dem2 = rasterio.open(TRN["dem2_tif"])
+
+terrain = gpd.read_file(TRN["landuse_geojson"])
+terrain2 = gpd.read_file(TRN["landuse2_geojson"])
 
 def get_elevation(lat, lon):
 
@@ -121,7 +129,7 @@ def add_terrain_features(df):
     df = df.dropna(subset=["elevation", "gw_elevation"])
 
     df["delta_elevation"] = (
-        df["elevation"] - df["gw_elevation"] + 1.5 - 15 # device antenna height - gateway antenna height approximation
+        df["elevation"] - df["gw_elevation"] + ANT["device_height_m"] - ANT["gateway_height_m"]
     )
 
     df["terrain_type"] = df.apply(
@@ -303,11 +311,11 @@ def get_path_features(
     lat1, lon1, h1,
     lat2, lon2, h2,
     distance,
-    frequency=922200000,
-    step_meters=30,
+    frequency=RADIO["default_frequency"],
+    step_meters=PATH["step_meters"],
 
-    gateway_antenna_height=15,
-    device_antenna_height=1.5
+    gateway_antenna_height=ANT["gateway_height_m"],
+    device_antenna_height=ANT["device_height_m"]
 ):
     n_points = max(int(distance / step_meters) + 1, 2)
 

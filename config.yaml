@@ -1,0 +1,64 @@
+# =============================================================================
+# Wireless Coverage Prediction — Configuration
+# =============================================================================
+# This file centralises all file paths and technical constants so the system
+# can be reused on a new project or region by editing a single file.
+#
+# UPDATE when you clone this repo for a new region:
+#   1. paths.inference.*   → point to your geospatial assets
+#   2. paths.training.*    → point to your training CSVs
+#   3. radio.*             → set your LoRa frequency / spreading factor
+#   4. antenna.*           → your hardware antenna heights
+#   5. knn.*               → tune nearest-neighbour search parameters
+#   6. inference.*         → adjust early-return / out-of-range logic
+# =============================================================================
+
+paths:
+  # ── Inference engine paths (relative to coverage_predictor/ CWD) ──
+  inference:
+    gateways_csv: "./data/gateways.csv"
+    reference_csv: "./data/reference_points.csv"
+    model_pkl: "model/extra_trees_model.pkl"
+    terrain_dir: "./data/terrain"
+    dem1_tif: "dem1.tif"
+    dem2_tif: "dem2.tif"
+    landuse_geojson: "landuse.geojson"
+    landuse2_geojson: "landuse2.geojson"
+
+  # ── Training pipeline paths (relative to src/ CWD) ──
+  training:
+    devices_history_csv: "../data/processed/devices_history_full.csv"
+    devices_history_1_csv: "../data/processed/devices_history_1.csv"
+    devices_history_2_csv: "../data/processed/devices_history_2.csv"
+    dem_tif: "../data/terrain/dem.tif"
+    dem2_tif: "../data/terrain/dem2.tif"
+    landuse_geojson: "../data/terrain/landuse.geojson"
+    landuse2_geojson: "../data/terrain/landuse2.geojson"
+    model_output_dir: "ml/models"
+    model_filename_template: "{model_type}_model_{date}.pkl"
+
+# ── Radio defaults ──
+radio:
+  default_frequency: 922200000            # Hz (used when caller omits frequency)
+  default_spreading_factor: 7             # LoRa SF (used when caller omits SF)
+
+# ── Nearest-neighbour algorithm hyperparameters ──
+knn:
+  min_distance: 0.1                       # metres — discard points this close (duplicate filtering)
+  k: 9                                    # number of final neighbours to keep
+  k_search: 11                            # candidates queried before distance-weight filter
+  gw_distance_weight: 1.1                 # penalty multiplier for gateway-distance difference
+
+# ── Inference engine behaviour ──
+inference:
+  closest_point_threshold_m: 150          # If nearest reference is ≤ this distance, return its RSSI directly
+  out_of_range_rssi: -120.0               # RSSI returned when query point is beyond gateway range
+
+# ── Antenna heights (gateway & device) ──
+antenna:
+  gateway_height_m: 15
+  device_height_m: 1.5
+
+# ── Path-profile sampling ──
+path_profile:
+  step_meters: 30                         # sampling interval along gateway–device path

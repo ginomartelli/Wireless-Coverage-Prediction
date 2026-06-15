@@ -1,3 +1,6 @@
+import sys
+import os
+
 import pandas as pd
 import numpy as np
 import joblib
@@ -11,6 +14,10 @@ from sklearn.metrics import (
     r2_score
 )
 
+# ── Configuration ──
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
+from config_loader import config  # noqa: E402
+
 from ml import pipeline
 from ml.pipeline import (
     NUMERIC_FEATURES,
@@ -21,15 +28,18 @@ from ml.pipeline import (
 )
 from processing.features import add_closest_point_features
 
-DATA_PATH = "../data/processed/devices_history_full.csv"
+TRN = config["paths"]["training"]
+KNN_CFG = config["knn"]
+
+DATA_PATH = TRN["devices_history_csv"]
 
 def train(
     model_type="extra_trees",
 
-    MIN_DISTANCE=0.1,
-    K=9,
-    K_SEARCH=11,
-    GW_DISTANCE_WEIGHT=1.1,
+    MIN_DISTANCE=KNN_CFG["min_distance"],
+    K=KNN_CFG["k"],
+    K_SEARCH=KNN_CFG["k_search"],
+    GW_DISTANCE_WEIGHT=KNN_CFG["gw_distance_weight"],
 
     show_importance=True,
     save_model=True
@@ -59,19 +69,19 @@ def train(
         X_train, y_train = prepare_data(
             train_df,
             reference_df=train_df,
-            MIN_DISTANCE=0.1,
-            K=9,
-            K_SEARCH=11,
-            GW_DISTANCE_WEIGHT=1.1
+            MIN_DISTANCE=MIN_DISTANCE,
+            K=K,
+            K_SEARCH=K_SEARCH,
+            GW_DISTANCE_WEIGHT=GW_DISTANCE_WEIGHT
         )
 
         X_test, y_test = prepare_data(
             test_df,
             reference_df=train_df,
-            MIN_DISTANCE=0.1,
-            K=9,
-            K_SEARCH=11,
-            GW_DISTANCE_WEIGHT=1.1
+            MIN_DISTANCE=MIN_DISTANCE,
+            K=K,
+            K_SEARCH=K_SEARCH,
+            GW_DISTANCE_WEIGHT=GW_DISTANCE_WEIGHT
         )
 
         pipeline.fit(X_train, y_train)
@@ -132,45 +142,39 @@ def train(
     #         print(f"  {feature}: {importance:.6f}")
 
     # ------------------------
-    # Final training
+    # Final training on full dataset
     # ------------------------
 
-    # print("Training final model on full data...")
+    if save_model:
 
-    # X, y = prepare_data(
-    #     df,
-    #     reference_df=df,
-    #     MIN_DISTANCE=MIN_DISTANCE,
-    #     K=K,
-    #     K_SEARCH=K_SEARCH,
-    #     GW_DISTANCE_WEIGHT=GW_DISTANCE_WEIGHT
-    # )
+        print("Training final model on full data...")
 
-    # pipeline = build_pipeline(
-    #     model_type
-    # )
+        X, y = prepare_data(
+            df,
+            reference_df=df,
+            MIN_DISTANCE=MIN_DISTANCE,
+            K=K,
+            K_SEARCH=K_SEARCH,
+            GW_DISTANCE_WEIGHT=GW_DISTANCE_WEIGHT
+        )
 
-    # pipeline.fit(X, y)
+        final_pipeline = build_pipeline(model_type)
+        final_pipeline.fit(X, y)
 
+        # Generate a date-stamped filename from config template
+        from datetime import date as _date
+        date_str = _date.today().strftime("%Y%m%d")  # e.g. 20260615
+        out_dir = TRN.get("model_output_dir", "ml/models")
+        tmpl = TRN.get("model_filename_template", "{model_type}_model_{date}.pkl")
+        model_filename = tmpl.replace("{model_type}", model_type).replace("{date}", date_str)
+        model_path = os.path.join(out_dir, model_filename)
 
-    # # ------------------------
-    # # Save final model
-    # # ------------------------
-
-    # if save_model:
-    
-    #     print(
-    #         "Saving model..."
-    #     )
-    
-    #     # joblib.dump(
-    #     #     pipeline,
-    #     #     f"ml/models/{model_type}_model.pkl"
-    #     # )
-    #     joblib.dump(
-    #         pipeline,
-    #         f"ml/models/{model_type}_model.pkl",
-    #         compress=("xz", 3)
-    #     )
+        print(f"Saving model to {model_path} ...")
+        joblib.dump(
+            final_pipeline,
+            model_path,
+            compress=("xz", 3)
+        )
+        print("Model saved.")
 
     print("Done.")

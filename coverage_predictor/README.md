@@ -8,7 +8,7 @@ It is designed to be used by the frontend to generate network coverage maps by r
 predict(lat, lon)
 ```
 
-The prediction pipeline is completely independent from the model training code.
+The prediction pipeline is completely independent from the model training code. It includes built-in **Out-of-Distribution (OOD)** detection to ensure reliability when queried outside the trained geographic domain (Vietnam).
 
 ---
 
@@ -44,10 +44,12 @@ The frontend only needs to import the predictor and call:
 ```python
 from predictor import predict
 
-rssi = predict(
+result = predict(
     lat=16.0735,
     lon=108.1512
 )
+
+# result = {"rssi": -108.7, "ood": False}
 ```
 
 Optional parameters:
@@ -57,9 +59,9 @@ predict(
     lat: float,
     lon: float,
     gateway: str | None = None,
-    frequency: float = 922200000,
-    spreading_factor: int = 7,
-) -> float
+    frequency: float | None = None,
+    spreading_factor: int | None = None,
+) -> dict
 ```
 
 ### Parameters
@@ -69,21 +71,27 @@ predict(
 | `lat`              | Latitude                                                               |
 | `lon`              | Longitude                                                              |
 | `gateway`          | Gateway ID. If omitted, the nearest gateway is automatically selected. |
-| `frequency`        | LoRa frequency in Hz                                                   |
-| `spreading_factor` | LoRa spreading factor                                                  |
+| `frequency`        | LoRa frequency in Hz (default from config)                             |
+| `spreading_factor` | LoRa spreading factor (default from config)                            |
 
 ### Return value
 
 ```python
-float
+dict
 ```
 
-Predicted RSSI in dBm.
+A dictionary containing:
+* `rssi` (float | None): Predicted RSSI in dBm, or `None` if OOD.
+* `ood` (bool): `True` if the point is Out-of-Distribution (e.g., Paris).
 
-Example:
-
+Example (Valid):
 ```python
--108.7
+{"rssi": -108.7, "ood": False}
+```
+
+Example (OOD):
+```python
+{"rssi": None, "ood": True}
 ```
 
 ---
