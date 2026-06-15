@@ -1,12 +1,20 @@
+import os
+import sys
+
 import numpy as np
 import pandas as pd
 
 from scipy.spatial import cKDTree
 
+# ── Configuration ──
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
+from config_loader import config  # noqa: E402
 
-REFERENCE = pd.read_csv(
-    "./data/reference_points.csv"
-)
+INF_CFG = config["paths"]["inference"]
+KNN_CFG = config["knn"]
+
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+REFERENCE = pd.read_csv(os.path.join(BASE_DIR, INF_CFG["reference_csv"]))
 
 LAT_TO_M = 111000.0
 LON_TO_M = (
@@ -19,10 +27,10 @@ LON_TO_M = (
     )
 )
 
-MIN_DISTANCE = 0.1
-K = 9
-K_SEARCH = 11
-GW_DISTANCE_WEIGHT = 1.1
+MIN_DISTANCE = KNN_CFG["min_distance"]
+K = KNN_CFG["k"]
+K_SEARCH = KNN_CFG["k_search"]
+GW_DISTANCE_WEIGHT = KNN_CFG["gw_distance_weight"]
 
 REFERENCE_COORDS = np.column_stack([
     REFERENCE["lat"].values * LAT_TO_M,
@@ -43,6 +51,8 @@ def closest_reference_point(lat, lon):
     dist, idx = REFERENCE_TREE.query(point)
 
     return REFERENCE.iloc[idx], dist
+
+
 TREES = {}
 
 for gw in REFERENCE["gateway"].unique():

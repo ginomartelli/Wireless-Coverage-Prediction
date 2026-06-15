@@ -1,5 +1,14 @@
+import os
+import sys
+
+# ── Ensure sibling modules and project root are importable ──
+sys.path.insert(0, os.path.dirname(__file__))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
+
 import numpy as np
 import pandas as pd
+
+from config_loader import config  # noqa: E402
 
 from terrain import (
     get_elevation,
@@ -14,9 +23,14 @@ from neighbor_features import (
     REFERENCE, LAT_TO_M, LON_TO_M, REFERENCE_TREE,
 )
 
-GATEWAYS = pd.read_csv(
-    "./data/gateways.csv"
-)
+INF_CFG = config["paths"]["inference"]
+RADIO = config["radio"]
+KNN_CFG = config["knn"]
+INFER = config["inference"]
+ANT = config["antenna"]
+
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+GATEWAYS = pd.read_csv(os.path.join(BASE_DIR, INF_CFG["gateways_csv"]))
 
 
 def haversine(lat1, lon1, lat2, lon2):
@@ -47,51 +61,68 @@ def build_features(
     lat,
     lon,
     gateway=None,
-    frequency=922200000,
-    spreading_factor=7,
+    frequency=RADIO["default_frequency"],
+    spreading_factor=RADIO["default_spreading_factor"],
 ):
 
     ref, dist = closest_reference_point(lat, lon)
-    if dist <= 150:
+
+    # ── Out-of-Distribution (OOD) check ──
+    # If the point is > 500km from any training data, it is OOD.
+    if dist > 500_000:
+        raise ValueError(f"Point ({lat}, {lon}) is Out-of-Distribution.")
+
+    if dist <= INFER["closest_point_threshold_m"]:
         return ref["rssi"]
     # -------------------------
     # Gateway selection
     # -------------------------
 
+    # -------------------------
+    # Gateway selection & fallback
+    # -------------------------
+    _gateway_unknown = False
+
     if gateway is None:
-    
+
         gateway = ref["gateway"]
 
-        gw = GATEWAYS[
-            GATEWAYS["gateway"] == gateway
-        ].iloc[0]
+        match = GATEWAYS[GATEWAYS["gateway"] == gateway]
+        if len(match) == 0:
+            # Fallback: use the first available gateway metadata
+            _gateway_unknown = True
+            match = GATEWAYS.iloc[:1]
+            gw = match.iloc[0]
+        else:
+            gw = match.iloc[0]
 
     else:
 
-        candidates = GATEWAYS[
-            GATEWAYS["gateway"] == gateway
-        ]
+        match = GATEWAYS[GATEWAYS["gateway"] == gateway]
 
-        if len(candidates) == 0:
-            raise ValueError(
-                f"Unknown gateway: {gateway}"
-            )
+        if len(match) == 0:
+            # Unknown gateway — fallback: use the closest gateway's metadata
+            _gateway_unknown = True
+            closest_gw_id = ref["gateway"]
+            match = GATEWAYS[GATEWAYS["gateway"] == closest_gw_id]
+            if len(match) == 0:
+                # Absolute fallback: pick first gateway
+                match = GATEWAYS.iloc[:1]
+            gw = match.iloc[0]
 
-        if len(candidates) == 1:
+        elif len(match) == 1:
 
-            gw = candidates.iloc[0]
+            gw = match.iloc[0]
 
         else:
 
             dist = (
-                (candidates["gw_lat"] - lat) ** 2
+                (match["gw_lat"] - lat) ** 2
                 +
-                (candidates["gw_lon"] - lon) ** 2
+                (match["gw_lon"] - lon) ** 2
             )
 
-            gw = candidates.loc[
-                dist.idxmin()
-            ]
+            gw = match.loc[dist.idxmin()]
 
     gateway = gw["gateway"]
 
@@ -107,7 +138,7 @@ def build_features(
     )
 
     if gateway_distance > gw["range"]:
-        return -120.0
+        return INFER["out_of_range_rssi"]
     # -------------------------
     # Geometry
     # -------------------------
@@ -146,9 +177,9 @@ def build_features(
         -
         gw_elevation
         +
-        1.5
+        ANT["device_height_m"]
         -
-        15
+        ANT["gateway_height_m"]
     )
 
     distance_3d = np.sqrt(
@@ -331,6 +362,9 @@ def build_features(
 
         "gateway":
             gateway,
+
+        "gateway_unknown":
+            1.0 if _gateway_unknown else 0.0,
 
     }])
 

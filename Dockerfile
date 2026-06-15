@@ -4,7 +4,7 @@
 # Stage 1: Builder — install system dependencies (GDAL, GEOS, PROJ) and
 #           compile all Python packages. This stage is never run directly.
 # =============================================================================
-FROM python:3.11-slim AS builder
+FROM python:3.12-slim AS builder
 
 # Prevent interactive prompts during apt
 ENV DEBIAN_FRONTEND=noninteractive
@@ -29,7 +29,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Stage 2: Inference Runner — minimal image for coverage_predictor/
 #           Optimised for repeated predict(lat, lon) calls.
 # =============================================================================
-FROM python:3.11-slim AS inference
+FROM python:3.12-slim AS inference
 
 ENV DEBIAN_FRONTEND=noninteractive \
     PYTHONDONTWRITEBYTECODE=1 \
@@ -43,7 +43,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy the full Python environment from builder
-COPY --from=builder /usr/local/lib/python3.11/site-packages /usr/local/lib/python3.11/site-packages
+COPY --from=builder /usr/local/lib/python3.12/site-packages /usr/local/lib/python3.12/site-packages
 COPY --from=builder /usr/local/bin /usr/local/bin
 
 WORKDIR /app/coverage_predictor

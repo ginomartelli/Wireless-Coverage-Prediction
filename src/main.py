@@ -1,22 +1,30 @@
+import sys
+import os
+
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+import contextily as ctx
+import geopandas as gpd
+
+# ── Configuration ──
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
+from config_loader import config  # noqa: E402
+
 from api.fetch_data import fetch_device_history
 from processing.cleaning import clean_data
 from processing.features import add_closest_point_features
 from processing.parser import parse_devices
 from ml.predict import predict
 from ml.train import train
-import pandas as pd
-import numpy as np
-import matplotlib.pyplot as plt
-import os
-import contextily as ctx
-import geopandas as gpd
 
 from build_gateways_dataset import build_gateways_dataset
 from build_reference_dataset import build_reference_dataset
 
-DATA_PATH = "../data/processed/devices_history_full.csv"
-DATA_PATH_1 = "../data/processed/devices_history_1.csv"
-DATA_PATH_2 = "../data/processed/devices_history_2.csv"
+TRN = config["paths"]["training"]
+DATA_PATH = TRN["devices_history_csv"]
+DATA_PATH_1 = TRN["devices_history_1_csv"]
+DATA_PATH_2 = TRN["devices_history_2_csv"]
 
 FORCE_FETCH = False
 ADD_FEATURES = False
