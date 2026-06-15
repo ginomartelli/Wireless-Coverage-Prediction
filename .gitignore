@@ -1,2 +1,3 @@
 .env
 src/ml/models/random_forest_model.pkl
+.vscode/settings.json
