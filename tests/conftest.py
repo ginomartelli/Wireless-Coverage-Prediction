@@ -5,7 +5,6 @@ Auto-discovers the project root so ``config_loader`` can be imported
 from ``tests/`` without manual ``sys.path`` manipulation.
 """
 
-import os
 import sys
 from pathlib import Path
 

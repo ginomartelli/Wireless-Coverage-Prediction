@@ -47,7 +47,7 @@ def get_elevation(lat, lon):
 
             return float(value)
 
-        except:
+        except Exception:
             return None
     else:
         try:
@@ -61,7 +61,7 @@ def get_elevation(lat, lon):
 
             return float(value)
 
-        except:
+        except Exception:
             return None
 
 def get_terrain_type(lat, lon):
@@ -208,7 +208,7 @@ def get_slope(lat, lon):
             slope = np.sqrt(gx**2 + gy**2)
 
             return float(np.mean(slope))
-        except:
+        except Exception:
             return None
     else:
         try:
@@ -225,7 +225,7 @@ def get_slope(lat, lon):
 
             return float(np.mean(slope))
 
-        except:
+        except Exception:
             return None
 
 def get_roughness(lat, lon):
@@ -240,7 +240,7 @@ def get_roughness(lat, lon):
 
             return float(np.std(window))
 
-        except:
+        except Exception:
             return None
     else:
         try:
@@ -253,7 +253,7 @@ def get_roughness(lat, lon):
 
             return float(np.std(window))
 
-        except:
+        except Exception:
             return None
 
 #outdated : to update if used

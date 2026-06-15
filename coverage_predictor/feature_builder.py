@@ -20,7 +20,6 @@ from terrain import (
 from neighbor_features import (
     compute_neighbor_features,
     closest_reference_point,
-    REFERENCE, LAT_TO_M, LON_TO_M, REFERENCE_TREE,
 )
 
 INF_CFG = config["paths"]["inference"]

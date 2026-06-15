@@ -56,7 +56,7 @@ def get_elevation(lat, lon):
 
         return float(value)
 
-    except:
+    except Exception:
         return None
 
 
@@ -91,7 +91,7 @@ def get_slope(lat, lon):
         gy, gx = np.gradient(window)
         slope = np.sqrt(gx ** 2 + gy ** 2)
         return float(np.mean(slope))
-    except:
+    except Exception:
         return None
 
 
@@ -102,7 +102,7 @@ def get_roughness(lat, lon):
         row, col = dataset.index(lon, lat)
         window = dataset.read(1, window=((row - 2, row + 3), (col - 2, col + 3)))
         return float(np.std(window))
-    except:
+    except Exception:
         return None
 
 

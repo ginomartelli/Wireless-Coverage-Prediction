@@ -5,12 +5,10 @@ import pandas as pd
 import numpy as np
 import joblib
 
-from sklearn.inspection import permutation_importance
-from sklearn.model_selection import KFold, ParameterSampler, RandomizedSearchCV, cross_validate, train_test_split, cross_val_score
+from sklearn.model_selection import KFold
 from sklearn.metrics import (
     root_mean_squared_error,
     mean_absolute_error,
-    mean_squared_error,
     r2_score
 )
 
@@ -18,15 +16,10 @@ from sklearn.metrics import (
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
 from config_loader import config  # noqa: E402
 
-from ml import pipeline
 from ml.pipeline import (
-    NUMERIC_FEATURES,
-    CATEGORICAL_FEATURES,
-    TARGET,
     build_pipeline,
     prepare_data
 )
-from processing.features import add_closest_point_features
 
 TRN = config["paths"]["training"]
 KNN_CFG = config["knn"]
@@ -57,8 +50,6 @@ def train(
     r2_scores = []
     mae_scores = []
     rmse_scores = []
-    feature_importances = []
-
     pipeline = build_pipeline("extra_trees")
 
     for train_idx, test_idx in kf.split(df):

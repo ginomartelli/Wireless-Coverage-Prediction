@@ -13,7 +13,7 @@ from config_loader import config  # noqa: E402
 
 from api.fetch_data import fetch_device_history
 from processing.cleaning import clean_data
-from processing.features import add_closest_point_features, add_basic_features
+from processing.features import add_closest_point_features
 from processing.parser import parse_devices
 from ml.predict import predict
 from ml.train import train
