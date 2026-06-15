@@ -1,6 +1,6 @@
 from api.fetch_data import fetch_device_history
 from processing.cleaning import clean_data
-from processing.features import add_closest_point_features
+from processing.features import add_closest_point_features, add_basic_features
 from processing.parser import parse_devices
 from ml.predict import predict
 from ml.train import train
@@ -26,7 +26,7 @@ SHOW_PLOTS =False
 SAVE_DATA_WITH_FEATURES =False
 PREDICT = False
 BUILD_REF = False
-BUILD_GW = True
+BUILD_GW = False
 
 def main():
     if(os.path.exists(DATA_PATH) and not FORCE_FETCH):
@@ -80,7 +80,10 @@ def main():
     if(ADD_FEATURES):
         print("Adding features...")
         # df = add_basic_features(df)
+        
         # df = add_terrain_features(df)
+        df = clean_data(df)
+        df = df.drop_duplicates()
         df.to_csv(DATA_PATH, index=False)
         print("Features added and data saved!")
 
