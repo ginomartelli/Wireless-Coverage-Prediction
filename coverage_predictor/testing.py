@@ -6,6 +6,13 @@ import predictor
 df_ref = pd.read_csv("./data/reference_points.csv")
 df_test = pd.read_csv("./data/devices_history_full.csv")
 
+df_pred = pd.read_csv("./data/predicted_test_points.csv")
+mean_absolute_error = np.mean(abs(df_pred["rssi_true"] - df_pred["rssi_pred"]))
+root_mean_squared_error = np.sqrt(np.mean((df_pred["rssi_true"] - df_pred["rssi_pred"]) ** 2))
+
+print(f"Mean Absolute Error: {mean_absolute_error:.2f}")
+print(f"Root Mean Squared Error: {root_mean_squared_error:.2f}")
+
 cols = ["lat", "lon", "rssi"]
 
 df_test = (
