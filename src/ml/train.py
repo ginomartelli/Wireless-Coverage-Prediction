@@ -17,6 +17,7 @@ from sklearn.metrics import (
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
 from config_loader import config  # noqa: E402
 
+from ml import pipeline
 from ml.pipeline import (
     build_pipeline,
     prepare_data
