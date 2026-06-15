@@ -768,4 +768,9 @@ ac1f09fffe0fd629  4397.0    801.112026   616.272306    193.746433    677.903765 
 ac1f09fffe0fd63b    15.0  13437.321802   795.547071  12378.693654  12784.799792  13253.984240  14235.344233  14513.705819
 
 
-le coverage n'est pas le meme pour chaque gateway logiquement : je selectionne la gateway en fonction de la gateway du point le plus proche. ensuite si le point en lui meme est trop loin de la gateway par rapport a son coverage je predis direct -120 ?
+le coverage n'est pas le meme pour chaque gateway logiquement : je selectionne la gateway en fonction de la gateway du point le plus proche. ensuite si le point en lui meme est trop loin de la gateway par rapport a son coverage je predis direct -120. si point proche <150m alors on renvoie direct son rssi (pas model mais app inference opti)
+
+nouvelles données test: nouvelle gateway donc ca prend la gateway du point le plus proche. il y a 2 mesure par lat/lon pour chaque gateway : on garde l'erreur la plus basse : on passe de MAE: 9.19e, RMSE: 12.41 à MAE : 8.72 dB, RMSE : 11.74 dB
+on enleve la gateway qu'on connait pas : MAE : 7.51 dB, RMSE: 11.26 dB
+on enleve gateway inconnue + duplicates : MAE pred1: 5.73 dB RMSE pred1: 8.31 dB
+on corrige le predict : MAE pred2: 3.31 dB RMSE pred2: 4.60 dB (800 nouvelles mesures)

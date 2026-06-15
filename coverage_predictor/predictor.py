@@ -1,3 +1,4 @@
+import pandas as pd
 from joblib import load
 from numbers import Number
 from feature_builder import build_features
@@ -39,6 +40,6 @@ def predict(
         spreading_factor=spreading_factor)
 
     if isinstance(features, Number):
-        return float(features)
+        return features
 
     return float(MODEL.predict(features)[0])

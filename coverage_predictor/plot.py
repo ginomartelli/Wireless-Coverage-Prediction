@@ -4,8 +4,6 @@ import geopandas as gpd
 import matplotlib.pyplot as plt
 import contextily as ctx
 
-import predictor
-
 PREDICT=False
 # --------------------
 # Da Nang bounds
@@ -18,8 +16,8 @@ LON_MIN = 108.08
 LON_MAX = 108.32
 
 if(PREDICT):
-    STEP = 0.01   # ~500 m
-
+    STEP = 0.1   # ~500 m
+    import predictor
     # --------------------
     # Grid generation
     # --------------------
@@ -44,10 +42,35 @@ if(PREDICT):
 
 df = pd.read_csv("./data/predicted_coverage.csv")
 df_pred = pd.read_csv("./data/predicted_test_points.csv")
+df_pred2 = pd.read_csv("./data/predicted_test_points2.csv")
+df_pred["abs_error"] = (
+    df_pred["rssi_true"] - df_pred["rssi_pred"]
+).abs()
+df_pred2["abs_error"] = (
+    df_pred2["rssi_true"] - df_pred2["rssi_pred"]
+).abs()
 
-print(df.head())
+df_pred2 = (
+    df_pred2.loc[
+        df_pred2.groupby(["lat", "lon"])["abs_error"].idxmin()
+    ]
+    .reset_index(drop=True)
+)
 
+df_pred2 = df_pred2[~(df_pred2["gateway"]=="7276ff000b031aec")].copy()
+
+print("MAE pred2: {:.2f} dB".format(df_pred2["abs_error"].mean()))
+print("RMSE pred2: {:.2f} dB".format(np.sqrt((df_pred2["abs_error"] ** 2).mean())))
+
+
+print("5 worst pred 2:")
+print(df_pred2.nlargest(5, "abs_error"))
+
+
+print("Number of test points (pred2): {}".format(df_pred2.__len__()))
 # Filter to Da Nang bounds
+df_pred = df_pred2.copy()
+
 df_danang = df[
     (df['lat'] >= LAT_MIN) & (df['lat'] <= LAT_MAX) &
     (df['lon'] >= LON_MIN) & (df['lon'] <= LON_MAX)

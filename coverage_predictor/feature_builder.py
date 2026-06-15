@@ -52,7 +52,7 @@ def build_features(
 ):
 
     ref, dist = closest_reference_point(lat, lon)
-    if dist <= 150:
+    if dist <= 30:
         return ref["rssi"]
     # -------------------------
     # Gateway selection
@@ -98,15 +98,6 @@ def build_features(
     gw_lon = gw["gw_lon"]
     gw_elevation = gw["gw_elevation"]
 
-    gateway_distance = haversine(
-        lat,
-        lon,
-        gw["gw_lat"],
-        gw["gw_lon"]
-    )
-
-    if gateway_distance > gw["range"]:
-        return -120.0
     # -------------------------
     # Geometry
     # -------------------------
@@ -117,6 +108,9 @@ def build_features(
         gw_lat,
         gw_lon,
     )
+
+    if distance > gw["range"]:
+        return -120.0
 
     delta_lat = (
         lat - gw_lat
