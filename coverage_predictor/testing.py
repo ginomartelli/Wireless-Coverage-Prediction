@@ -1,101 +1,48 @@
 import numpy as np
 import pandas as pd
-import geopandas as gpd
-import matplotlib.pyplot as plt
-import contextily as ctx
 
 import predictor
 
+df_ref = pd.read_csv("./data/reference_points.csv")
+df_test = pd.read_csv("./data/devices_history_full.csv")
 
-# --------------------
-# Da Nang bounds
-# --------------------
+cols = ["lat", "lon", "rssi"]
 
-LAT_MIN = 15.87
-LAT_MAX = 16.12
-
-LON_MIN = 108.08
-LON_MAX = 108.32
-
-STEP = 0.01   # ~500 m
-
-# --------------------
-# Grid generation
-# --------------------
-
-points = []
-lat_vals = np.arange(LAT_MIN, LAT_MAX, STEP)
-lon_vals = np.arange(LON_MIN, LON_MAX, STEP)
-
-total = len(lat_vals) * len(lon_vals)
-count = 0
-
-for lat in lat_vals:
-    for lon in lon_vals:
-        rssi = predictor.predict(lat, lon)
-        count += 1
-        percent = count / total * 100
-        print(f"[{count}/{total}] {percent:.1f}% - Predicted RSSI at ({lat:.4f}, {lon:.4f}): {rssi:.2f} dBm")
-        points.append({"lat": lat, "lon": lon, "rssi": rssi})
-
-df = pd.DataFrame(points)
-df.to_csv("predicted_coverage.csv", index=False)
-
-print(df.head())
-
-gdf = gpd.GeoDataFrame(
-    df,
-    geometry=gpd.points_from_xy(
-        df["lon"],
-        df["lat"]
-    ),
-    crs="EPSG:4326"
-).to_crs(
-    epsg=3857
+df_test = (
+    df_test
+    .merge(df_ref[cols], on=cols, how="left", indicator=True)
+    .query("_merge == 'left_only'")
+    .drop(columns="_merge")
 )
 
-fig, ax = plt.subplots(
-    figsize=(12, 10)
-)
+df_test.to_csv("./data/test_points.csv", index=False)
 
-gdf.plot(
-    ax=ax,
-    column="rssi",
-    cmap="RdYlGn",
-    markersize=15,
-    alpha=0.8,
-    legend=True,
-)
+mae = []
+rmse = []
+df_pred = []
+for idx, row in df_test.iterrows():
+    lat = row["lat"]
+    lon = row["lon"]
+    gateway = row["gateway"]
+    frequency = row["frequency"]
+    spreading_factor = row["spreading_factor"]
+    rssi_true = row["rssi"]
+    rssi_pred = predictor.predict(lat, lon, gateway=gateway, frequency=frequency, spreading_factor=spreading_factor)
+    mae.append(abs(rssi_true - rssi_pred))
+    rmse.append((rssi_true - rssi_pred) ** 2)
+    df_pred.append({
+        "lat": lat,
+        "lon": lon,
+        "gateway": gateway,
+        "frequency": frequency,
+        "spreading_factor": spreading_factor,
+        "rssi_true": rssi_true,
+        "rssi_pred": rssi_pred
+    })
+    print(f"Test point {idx+1}/{len(df_test)}: True RSSI={rssi_true}, Predicted RSSI={rssi_pred:.2f}")
 
-ctx.add_basemap(
-    ax,
-    source=ctx.providers.OpenStreetMap.Mapnik
-)
+print(f"Mean Absolute Error: {np.mean(mae):.2f}")
+print(f"Root Mean Squared Error: {np.sqrt(np.mean(rmse)):.2f}")
 
-ax.set_title(
-    "Predicted RSSI Coverage - Da Nang"
-)
-
-plt.show()
-
-plt.figure(
-    figsize=(12,10)
-)
-
-plt.hexbin(
-    df["lon"],
-    df["lat"],
-    C=df["rssi"],
-    gridsize=50,
-    reduce_C_function=np.mean
-)
-
-plt.colorbar(
-    label="Predicted RSSI (dBm)"
-)
-
-plt.title(
-    "Predicted Coverage - Da Nang"
-)
-
-plt.show()
+df_pred = pd.DataFrame(df_pred)
+df_pred.to_csv("./data/predicted_test_points.csv", index=False)

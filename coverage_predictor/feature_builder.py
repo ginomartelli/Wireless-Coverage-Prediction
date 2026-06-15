@@ -73,25 +73,24 @@ def build_features(
         ]
 
         if len(candidates) == 0:
-            raise ValueError(
+            print(
                 f"Unknown gateway: {gateway}"
             )
+            gateway = ref["gateway"]
+
+            gw = GATEWAYS[
+                GATEWAYS["gateway"] == gateway
+            ].iloc[0]
 
         if len(candidates) == 1:
 
             gw = candidates.iloc[0]
 
         else:
-
-            dist = (
-                (candidates["gw_lat"] - lat) ** 2
-                +
-                (candidates["gw_lon"] - lon) ** 2
-            )
-
-            gw = candidates.loc[
-                dist.idxmin()
-            ]
+            gateway = ref["gateway"]
+            gw = GATEWAYS[
+                GATEWAYS["gateway"] == gateway
+            ].iloc[0]
 
     gateway = gw["gateway"]
 
