@@ -255,7 +255,7 @@ knn:                      # KNN algorithm hyperparameters
   gw_distance_weight: 1.1                # gateway-distance penalty
 
 inference:                # Engine behaviour
-  closest_point_threshold_m: 150         # return RSSI directly if nearest ref ≤ 150 m
+  closest_point_threshold_m: 30         # return RSSI directly if nearest ref ≤ 30 m
   out_of_range_rssi: -120.0              # RSSI when point is beyond gateway range
 
 antenna:                  # Hardware heights
@@ -417,7 +417,7 @@ result = predict(
 | Valid prediction (Da Nang) | `{"rssi": -108.7, "ood": False}` |
 | Out-of-Distribution (Paris) | `{"rssi": None, "ood": True}` |
 | Beyond gateway range | `{"rssi": -120.0, "ood": False}` |
-| Very close to reference point (≤ 150 m) | `{"rssi": -87.0, "ood": False}` (raw RSSI from nearest reference) |
+| Very close to reference point (≤ 30 m) | `{"rssi": -87.0, "ood": False}` (raw RSSI from nearest reference) |
 
 ### Out-of-Distribution (OOD) Detection
 
@@ -437,7 +437,7 @@ predict(lat, lon)
   │
   ├── 1. Find nearest reference point (KDTree query)
   │     └── If distance > 500 km → OOD (ValueError)
-  │     └── If distance ≤ 150 m → return reference RSSI directly
+  │     └── If distance ≤ 30 m → return reference RSSI directly
   │
   ├── 2. Gateway selection
   │     └── If gateway=None → use the nearest reference's gateway
