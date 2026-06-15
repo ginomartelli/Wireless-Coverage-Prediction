@@ -51,7 +51,7 @@ knn:
 
 # ── Inference engine behaviour ──
 inference:
-  closest_point_threshold_m: 150          # If nearest reference is ≤ this distance, return its RSSI directly
+  closest_point_threshold_m: 30          # If nearest reference is ≤ this distance, return its RSSI directly
   out_of_range_rssi: -120.0               # RSSI returned when query point is beyond gateway range
 
 # ── Antenna heights (gateway & device) ──
