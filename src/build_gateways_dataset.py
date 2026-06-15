@@ -29,12 +29,12 @@ def build_gateways_dataset(
 
     gateways_df["gw_lat_round"] = (
         gateways_df["gw_lat"]
-        .round(5)
+        .round(0)
     )
 
     gateways_df["gw_lon_round"] = (
         gateways_df["gw_lon"]
-        .round(5)
+        .round(0)
     )
 
     # On ne supprime que les vraies copies
@@ -62,6 +62,13 @@ def build_gateways_dataset(
         )
         .reset_index(drop=True)
     )
+
+    ranges = (
+        df.groupby("gateway")["distance"]
+        .quantile(0.95)
+    )
+
+    gateways_df["range"] = gateways_df["gateway"].map(ranges)
     gateways_df.to_csv(output_csv, index=False)
 
     print(f"Saved {len(gateways_df)} gateways to {output_csv}")

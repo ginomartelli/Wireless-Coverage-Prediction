@@ -20,7 +20,7 @@ DATA_DIR = os.path.join(
 dem = rasterio.open(
     os.path.join(
         DATA_DIR,
-        "dem.tif"
+        "dem1.tif"
     )
 )
 
@@ -53,14 +53,13 @@ def _use_dem2(lat):
 def get_elevation(lat, lon):
 
     if lat is None or lon is None:
-        return None
+        return 12.5
     
     if not (-90 <= lat <= 90):
-        
-        return None
+        return 12.5
 
     if not (-180 <= lon <= 180):
-        return None
+        return 12.5
 
     try:
 

@@ -1,118 +1,101 @@
 import numpy as np
 import pandas as pd
+import geopandas as gpd
+import matplotlib.pyplot as plt
+import contextily as ctx
 
 import predictor
-import feature_builder
 
 
-# ---------------------------------------
-# Load validation dataset
-# ---------------------------------------
+# --------------------
+# Da Nang bounds
+# --------------------
 
-df = pd.read_csv(
-    "../data/processed/devices_history_full.csv"
+LAT_MIN = 15.87
+LAT_MAX = 16.12
+
+LON_MIN = 108.08
+LON_MAX = 108.32
+
+STEP = 0.01   # ~500 m
+
+# --------------------
+# Grid generation
+# --------------------
+
+points = []
+lat_vals = np.arange(LAT_MIN, LAT_MAX, STEP)
+lon_vals = np.arange(LON_MIN, LON_MAX, STEP)
+
+total = len(lat_vals) * len(lon_vals)
+count = 0
+
+for lat in lat_vals:
+    for lon in lon_vals:
+        rssi = predictor.predict(lat, lon)
+        count += 1
+        percent = count / total * 100
+        print(f"[{count}/{total}] {percent:.1f}% - Predicted RSSI at ({lat:.4f}, {lon:.4f}): {rssi:.2f} dBm")
+        points.append({"lat": lat, "lon": lon, "rssi": rssi})
+
+df = pd.DataFrame(points)
+df.to_csv("predicted_coverage.csv", index=False)
+
+print(df.head())
+
+gdf = gpd.GeoDataFrame(
+    df,
+    geometry=gpd.points_from_xy(
+        df["lon"],
+        df["lat"]
+    ),
+    crs="EPSG:4326"
+).to_crs(
+    epsg=3857
 )
 
-# Pour aller plus vite pendant les tests :
-df = df.sample(50, random_state=42)
-
-# ---------------------------------------
-# Predict
-# ---------------------------------------
-
-predictions = []
-
-for i, row in df.iterrows():
-    lat=row["lat"] + 1e-4,
-    lon=row["lon"] + 1e-4,
-    pred = predictor.predict(
-        lat=lat[0],
-        lon=lon[0],
-        gateway=row["gateway"],
-        frequency=row["frequency"],
-        spreading_factor=row["spreading_factor"],
-    )
-
-    predictions.append(pred)
-
-    if (i + 1) % 5 == 0:
-        print(
-            f"{(i+1)/len(df):.2%}"
-        )
-
-df["predicted_rssi"] = predictions
-
-# ---------------------------------------
-# Metrics
-# ---------------------------------------
-
-df["error"] = (
-    df["predicted_rssi"]
-    - df["rssi"]
+fig, ax = plt.subplots(
+    figsize=(12, 10)
 )
 
-df["abs_error"] = np.abs(
-    df["error"]
+gdf.plot(
+    ax=ax,
+    column="rssi",
+    cmap="RdYlGn",
+    markersize=15,
+    alpha=0.8,
+    legend=True,
 )
 
-print()
-print("========== RESULTS ==========")
-
-print(
-    f"MAE : {df['abs_error'].mean():.3f}"
+ctx.add_basemap(
+    ax,
+    source=ctx.providers.OpenStreetMap.Mapnik
 )
 
-print(
-    f"RMSE : {np.sqrt((df['error'] ** 2).mean()):.3f}"
+ax.set_title(
+    "Predicted RSSI Coverage - Da Nang"
 )
 
-print(
-    f"Max error : {df['abs_error'].max():.3f}"
+plt.show()
+
+plt.figure(
+    figsize=(12,10)
 )
 
-print(
-    df.sort_values(
-        "abs_error",
-        ascending=False
-    )[
-        [
-            "lat",
-            "lon",
-            "gateway",
-            "rssi",
-            "predicted_rssi",
-            "error",
-        ]
-    ].head(5)
+plt.hexbin(
+    df["lon"],
+    df["lat"],
+    C=df["rssi"],
+    gridsize=50,
+    reduce_C_function=np.mean
 )
 
-# ---------------------------------------
-# Debug worst sample
-# ---------------------------------------
-
-print()
-print("===================================")
-print("DEBUG WORST SAMPLE")
-print("===================================")
-
-worst_idx = df["abs_error"].idxmax()
-
-row = df.loc[
-    worst_idx
-]
-
-# row = df.loc[10074]
-print()
-print("Original row :")
-print(
-    row[
-        [
-            "lat",
-            "lon",
-            "gateway",
-            "frequency",
-            "spreading_factor",
-            "rssi"
-        ]
-    ]
+plt.colorbar(
+    label="Predicted RSSI (dBm)"
 )
+
+plt.title(
+    "Predicted Coverage - Da Nang"
+)
+
+plt.show()

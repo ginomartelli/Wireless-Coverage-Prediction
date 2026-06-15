@@ -1,8 +1,9 @@
 from joblib import load
-
+from numbers import Number
 from feature_builder import build_features
 
 MODEL = load("model/extra_trees_model.pkl")
+print("Model loaded successfully.")
 
 def predict(
     lat: float,
@@ -30,12 +31,14 @@ def predict(
     if spreading_factor is None:
         spreading_factor = 7
 
-    X = build_features(
+    features = build_features(
         lat=lat,
         lon=lon,
         gateway=gateway,
         frequency=frequency,
-        spreading_factor=spreading_factor
-    )
+        spreading_factor=spreading_factor)
 
-    return float(MODEL.predict(X)[0])
+    if isinstance(features, Number):
+        return float(features)
+
+    return float(MODEL.predict(features)[0])

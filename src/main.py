@@ -1,17 +1,18 @@
-from api.fetch_data import fetch_device_history, fetch_latest_devices
+from api.fetch_data import fetch_device_history
 from processing.cleaning import clean_data
-from processing.features import add_basic_features, add_closest_point_features
+from processing.features import add_closest_point_features
 from processing.parser import parse_devices
-from processing.terrain import add_terrain_features
 from ml.predict import predict
 from ml.train import train
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import os
+import contextily as ctx
+import geopandas as gpd
 
 from build_gateways_dataset import build_gateways_dataset
-
+from build_reference_dataset import build_reference_dataset
 
 DATA_PATH = "../data/processed/devices_history_full.csv"
 DATA_PATH_1 = "../data/processed/devices_history_1.csv"
@@ -19,10 +20,13 @@ DATA_PATH_2 = "../data/processed/devices_history_2.csv"
 
 FORCE_FETCH = False
 ADD_FEATURES = False
-TRAIN =True
+TRAIN =False
 MODEL_TYPE = "extra_trees"
 SHOW_PLOTS =False
 SAVE_DATA_WITH_FEATURES =False
+PREDICT = False
+BUILD_REF = False
+BUILD_GW = True
 
 def main():
     if(os.path.exists(DATA_PATH) and not FORCE_FETCH):
@@ -95,202 +99,263 @@ def main():
             index=False
         )
         print("Features added and data saved!")
+    if BUILD_REF:
+        print("Building reference dataset...")
+        build_reference_dataset()
+    if BUILD_GW:
+        print("Building gateways dataset...")
+        build_gateways_dataset()
+    if(PREDICT or SHOW_PLOTS):
+        print("Predicting...")
+        df["predicted_rssi"] = predict(df, model_type=MODEL_TYPE, reference_df=df)
+        df["error"] = df["rssi"] - df["predicted_rssi"]
+        df["abs_error"] = np.abs(df["error"])
 
+    if SHOW_PLOTS:
 
-    # print("Predicting...")
-    # predictions = predict(df, MODEL_TYPE, df)
-    # df["predicted_rssi"] = predictions
+        print("Showing plots...")
 
-    # # Worst predictions
-    # df["error"] = (df["predicted_rssi"] - df["rssi"]).abs()
+        df_danang = df[df["lat"] < 18].copy()
+        df_haiphong = df[df["lat"] > 18].copy()
 
-    # worst_10 = (
-    #     df
-    #     .sort_values("error", ascending=False)
-    #     .head(10)
-    # )
+        # =====================================================
+        # DA NANG - POINTS
+        # =====================================================
 
-    # print("\n10 worst predictions:")
-    # print(
-    #     worst_10[
-    #         [
-    #             "lat",
-    #             "lon",
-    #             "gateway_id",
-    #             "distance",
-    #             "rssi",
-    #             "predicted_rssi",
-    #             "error"
-    #         ]
-    #     ]
-    # )
-    # print(f"Standard deviation of errors: {df['error'].std()}")
+        gdf = gpd.GeoDataFrame(
+            df_danang,
+            geometry=gpd.points_from_xy(
+                df_danang.lon,
+                df_danang.lat
+            ),
+            crs="EPSG:4326"
+        ).to_crs(epsg=3857)
 
-    # if SHOW_PLOTS:
+        fig, ax = plt.subplots(
+            figsize=(12, 10)
+        )
 
-    #     gateways = df["gateway_id"].astype(str)
-    #     unique = gateways.unique()
+        gdf.plot(
+            ax=ax,
+            column="abs_error",
+            cmap="inferno",
+            markersize=30,
+            alpha=0.2,
+            legend=True,
+            vmin=0,
+            vmax=8
+        )
 
-    #     cmap = plt.get_cmap("tab10")
-    #     colors = {
-    #         g: cmap(i % cmap.N)
-    #         for i, g in enumerate(unique)
-    #     }
+        gateways = (
+            df_danang
+            .groupby("gateway")
+            .first()
+            .reset_index()[
+                ["gateway", "gw_lat", "gw_lon"]
+            ]
+        )
 
-    #     # --------------------------------------------------
-    #     # Closest point RSSI vs Actual RSSI
-    #     # --------------------------------------------------
+        gw_gdf = gpd.GeoDataFrame(
+            gateways,
+            geometry=gpd.points_from_xy(
+                gateways.gw_lon,
+                gateways.gw_lat
+            ),
+            crs="EPSG:4326"
+        ).to_crs(epsg=3857)
 
-    #     plt.figure(figsize=(6, 6))
+        gw_gdf.plot(
+            ax=ax,
+            marker="^",
+            color="green",
+            markersize=80,
+            alpha=0.7,
+            label="Gateway"
+        )
 
-    #     plt.scatter(
-    #         df["rssi"],
-    #         df["rssi_closest_point"],
-    #         alpha=0.4
-    #     )
+        ctx.add_basemap(
+            ax,
+            source=ctx.providers.OpenStreetMap.Mapnik
+        )
 
-    #     lo = min(
-    #         df["rssi"].min(),
-    #         df["rssi_closest_point"].min()
-    #     )
-    #     hi = max(
-    #         df["rssi"].max(),
-    #         df["rssi_closest_point"].max()
-    #     )
+        ax.legend()
+        ax.set_title(
+            "Da Nang RSSI Prediction Error"
+        )
 
-    #     plt.plot([lo, hi], [lo, hi], "r--")
+        ax.set_axis_off()
 
-    #     plt.xlabel("Actual RSSI")
-    #     plt.ylabel("Closest point RSSI")
-    #     plt.title("Closest Point RSSI vs Actual RSSI")
-    #     plt.tight_layout()
-    #     plt.show()
+        plt.show()
 
-    #     # --------------------------------------------------
-    #     # Predicted vs Actual
-    #     # --------------------------------------------------
+        # =====================================================
+        # DA NANG - HEXBIN
+        # =====================================================
 
-    #     plt.figure(figsize=(6, 6))
+        fig, ax = plt.subplots(
+            figsize=(12, 10)
+        )
 
-    #     for g in unique:
-    #         mask = gateways == g
+        hb = ax.hexbin(
+            gdf.geometry.x,
+            gdf.geometry.y,
+            C=np.abs(df_danang["error"]),
+            reduce_C_function=np.mean,
+            gridsize=75,
+            mincnt=1,
+            vmax=4
+        )
 
-    #         plt.scatter(
-    #             df.loc[mask, "rssi"],
-    #             df.loc[mask, "predicted_rssi"],
-    #             alpha=0.5,
-    #             label=str(g),
-    #             color=colors[g]
-    #         )
+        gw_gdf.plot(
+            ax=ax,
+            marker="^",
+            color="red",
+            markersize=60,
+            alpha=0.7,
+            label="Gateway"
+        )
 
-    #     lo = min(
-    #         df["rssi"].min(),
-    #         df["predicted_rssi"].min()
-    #     )
-    #     hi = max(
-    #         df["rssi"].max(),
-    #         df["predicted_rssi"].max()
-    #     )
+        ctx.add_basemap(
+            ax,
+            source=ctx.providers.OpenStreetMap.Mapnik
+        )
 
-    #     plt.plot([lo, hi], [lo, hi], "r--")
+        cbar = plt.colorbar(
+            hb,
+            ax=ax
+        )
 
-    #     plt.xlabel("Actual RSSI")
-    #     plt.ylabel("Predicted RSSI")
-    #     plt.title("Predicted vs Actual RSSI")
-    #     plt.legend(title="Gateway")
-    #     plt.tight_layout()
-    #     plt.show()
+        cbar.set_label(
+            "Mean Absolute Error (dBm)"
+        )
 
-    #     # --------------------------------------------------
-    #     # Error histogram
-    #     # --------------------------------------------------
+        ax.legend()
 
-    #     error = (
-    #         df["predicted_rssi"]
-    #         - df["rssi"]
-    #     )
+        ax.set_title(
+            "Da Nang RSSI Prediction Error Heatmap"
+        )
 
-    #     plt.figure(figsize=(8, 5))
+        ax.set_axis_off()
 
-    #     plt.hist(
-    #         error,
-    #         bins=50,
-    #         alpha=0.7
-    #     )
+        plt.show()
 
-    #     plt.axvline(
-    #         0,
-    #         color="black",
-    #         linestyle="--"
-    #     )
+        # =====================================================
+        # HAI PHONG - POINTS
+        # =====================================================
 
-    #     plt.xlabel("Prediction Error (dBm)")
-    #     plt.ylabel("Count")
-    #     plt.title("Prediction Error Distribution")
-    #     plt.tight_layout()
-    #     plt.show()
+        gdf = gpd.GeoDataFrame(
+            df_haiphong,
+            geometry=gpd.points_from_xy(
+                df_haiphong.lon,
+                df_haiphong.lat
+            ),
+            crs="EPSG:4326"
+        ).to_crs(epsg=3857)
 
-    #     # --------------------------------------------------
-    #     # Absolute Error vs Gateway Distance
-    #     # --------------------------------------------------
+        fig, ax = plt.subplots(
+            figsize=(12, 10)
+        )
 
-    #     abs_error = np.abs(error)
+        gdf.plot(
+            ax=ax,
+            column="abs_error",
+            cmap="inferno",
+            markersize=15,
+            alpha=0.7,
+            legend=True,
+            vmin=0,
+            vmax=8
+        )
 
-    #     plt.figure(figsize=(8, 5))
+        gateways = (
+            df_haiphong[
+                ["gateway", "gw_lat", "gw_lon"]
+            ]
+            .drop_duplicates()
+        )
 
-    #     plt.scatter(
-    #         df["distance"],
-    #         abs_error,
-    #         alpha=0.3
-    #     )
+        gw_gdf = gpd.GeoDataFrame(
+            gateways,
+            geometry=gpd.points_from_xy(
+                gateways.gw_lon,
+                gateways.gw_lat
+            ),
+            crs="EPSG:4326"
+        ).to_crs(epsg=3857)
 
-    #     plt.xlabel("Gateway Distance (m)")
-    #     plt.ylabel("Absolute Error (dBm)")
-    #     plt.title("Absolute Error vs Gateway Distance")
-    #     plt.tight_layout()
-    #     plt.show()
+        gw_gdf.plot(
+            ax=ax,
+            marker="^",
+            color="cyan",
+            markersize=120,
+            label="Gateway"
+        )
 
-    #     # --------------------------------------------------
-    #     # Absolute Error vs Closest Point Distance
-    #     # --------------------------------------------------
+        ctx.add_basemap(
+            ax,
+            source=ctx.providers.OpenStreetMap.Mapnik
+        )
 
-    #     plt.figure(figsize=(8, 5))
+        ax.legend()
 
-    #     plt.scatter(
-    #         df["distance_closest_point"],
-    #         abs_error,
-    #         alpha=0.3
-    #     )
+        ax.set_title(
+            "Hai Phong RSSI Prediction Error"
+        )
 
-    #     plt.xlabel("Closest Point Distance (m)")
-    #     plt.ylabel("Absolute Error (dBm)")
-    #     plt.title("Absolute Error vs Closest Point Distance")
-    #     plt.tight_layout()
-    #     plt.show()
+        ax.set_axis_off()
 
-    #     # --------------------------------------------------
-    #     # Residuals
-    #     # --------------------------------------------------
+        plt.show()
 
-    #     plt.figure(figsize=(8, 5))
+        # =====================================================
+        # HAI PHONG - HEXBIN
+        # =====================================================
 
-    #     plt.scatter(
-    #         df["rssi"],
-    #         error,
-    #         alpha=0.3
-    #     )
+        fig, ax = plt.subplots(
+            figsize=(12, 10)
+        )
 
-    #     plt.axhline(
-    #         0,
-    #         color="black",
-    #         linestyle="--"
-    #     )
+        hb = ax.hexbin(
+            gdf.geometry.x,
+            gdf.geometry.y,
+            C=np.abs(df_haiphong["error"]),
+            reduce_C_function=np.mean,
+            gridsize=75,
+            mincnt=1,
+            vmax=4
+        )
 
-    #     plt.xlabel("Actual RSSI")
-    #     plt.ylabel("Residual (Prediction - Actual)")
-    #     plt.title("Residuals vs Actual RSSI")
-    #     plt.tight_layout()
-    #     plt.show()
+        gw_gdf.plot(
+            ax=ax,
+            marker="^",
+            color="red",
+            markersize=60,
+            alpha=0.7,
+            label="Gateway"
+        )
+
+        ctx.add_basemap(
+            ax,
+            source=ctx.providers.OpenStreetMap.Mapnik
+        )
+
+        cbar = plt.colorbar(
+            hb,
+            ax=ax
+        )
+
+        cbar.set_label(
+            "Mean Absolute Error (dBm)"
+        )
+
+        ax.legend()
+
+        ax.set_title(
+            "Hai Phong RSSI Prediction Error Heatmap"
+        )
+
+        ax.set_axis_off()
+
+        plt.show()
+
 
 if __name__ == "__main__":
     main()

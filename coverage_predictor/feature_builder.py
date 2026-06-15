@@ -10,6 +10,8 @@ from terrain import (
 
 from neighbor_features import (
     compute_neighbor_features,
+    closest_reference_point,
+    REFERENCE, LAT_TO_M, LON_TO_M, REFERENCE_TREE,
 )
 
 GATEWAYS = pd.read_csv(
@@ -41,26 +43,6 @@ def haversine(lat1, lon1, lat2, lon2):
 
     return R * c
 
-
-def select_gateway(
-    lat,
-    lon,
-):
-
-    distances = haversine(
-        lat,
-        lon,
-        GATEWAYS["gw_lat"].values,
-        GATEWAYS["gw_lon"].values,
-    )
-
-    idx = np.argmin(
-        distances
-    )
-
-    return GATEWAYS.iloc[idx]
-
-
 def build_features(
     lat,
     lon,
@@ -69,29 +51,34 @@ def build_features(
     spreading_factor=7,
 ):
 
+    ref, dist = closest_reference_point(lat, lon)
+    if dist <= 150:
+        return ref["rssi"]
     # -------------------------
     # Gateway selection
     # -------------------------
 
     if gateway is None:
+    
+        gateway = ref["gateway"]
 
-        gw = select_gateway(
-            lat,
-            lon
-        )
+        gw = GATEWAYS[
+            GATEWAYS["gateway"] == gateway
+        ].iloc[0]
 
     else:
 
         candidates = GATEWAYS[
             GATEWAYS["gateway"] == gateway
-        ].copy()
+        ]
 
         if len(candidates) == 0:
             raise ValueError(
                 f"Unknown gateway: {gateway}"
             )
 
-        elif len(candidates) == 1:
+        if len(candidates) == 1:
+
             gw = candidates.iloc[0]
 
         else:
@@ -107,10 +94,20 @@ def build_features(
             ]
 
     gateway = gw["gateway"]
+
     gw_lat = gw["gw_lat"]
     gw_lon = gw["gw_lon"]
-    gw_elevation = gw[ "gw_elevation" ]
+    gw_elevation = gw["gw_elevation"]
 
+    gateway_distance = haversine(
+        lat,
+        lon,
+        gw["gw_lat"],
+        gw["gw_lon"]
+    )
+
+    if gateway_distance > gw["range"]:
+        return -120.0
     # -------------------------
     # Geometry
     # -------------------------
