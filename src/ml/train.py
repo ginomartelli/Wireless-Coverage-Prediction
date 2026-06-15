@@ -52,6 +52,7 @@ def train(
     r2_scores = []
     mae_scores = []
     rmse_scores = []
+    feature_importances = []
     pipeline = build_pipeline("extra_trees")
 
     for train_idx, test_idx in kf.split(df):
