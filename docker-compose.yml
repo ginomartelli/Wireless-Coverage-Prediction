@@ -39,6 +39,24 @@ services:
       "
 
   # ---------------------------------------------------------------------------
+  # Web Dashboard — Streamlit UI for interactive coverage maps
+  # ---------------------------------------------------------------------------
+  web-dashboard:
+    build:
+      context: .
+      target: web-dashboard
+      dockerfile: Dockerfile
+    image: wireless-coverage-dashboard:latest
+    container_name: coverage-dashboard
+    ports:
+      - "8501:8501"
+    volumes:
+      - ./coverage_predictor/data/terrain:/app/coverage_predictor/data/terrain:ro
+    environment:
+      - PYTHONDONTWRITEBYTECODE=1
+      - PYTHONUNBUFFERED=1
+
+  # ---------------------------------------------------------------------------
   # Training Service
   # ---------------------------------------------------------------------------
   # Full pipeline that:

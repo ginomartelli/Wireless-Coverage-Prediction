@@ -8,6 +8,7 @@
 [![R²](https://img.shields.io/badge/R%C2%B2-0.9285-brightgreen)]()
 [![MAE](https://img.shields.io/badge/MAE-1.93%20dBm-yellow)]()
 [![CI](https://img.shields.io/badge/CI-pytest%20%7C%20ruff-success)]()
+[![Dashboard](https://img.shields.io/badge/dashboard-Streamlit-red)]()
 
 ---
 
@@ -22,6 +23,7 @@
   - [2. Processing & Engineering Layer (`src/processing/`)](#2-processing--engineering-layer-srcprocessing)
   - [3. Training & ML Layer (`src/ml/`)](#3-training--ml-layer-srcml)
   - [4. Standalone Inference Engine (`coverage_predictor/`)](#4-standalone-inference-engine-coverage_predictor)
+  - [5. Web Dashboard (`app.py`)](#5-web-dashboard-apppy)
 - [🔮 Inference API Reference](#-inference-api-reference)
   - [`predict()`](#predict)
   - [Out-of-Distribution (OOD) Detection](#out-of-distribution-ood-detection)
@@ -32,8 +34,10 @@
   - [Model Training & Cross-Validation](#model-training--cross-validation)
 - [🐳 Docker Deployment](#-docker-deployment)
   - [Inference Image](#inference-image)
+  - [Web Dashboard Image](#web-dashboard-image)
   - [Training Image](#training-image)
   - [Building & Running](#building--running)
+  - [Docker Compose](#docker-compose)
 - [🧪 Testing](#-testing)
   - [Running Tests](#running-tests)
   - [Test Coverage](#test-coverage)
@@ -45,7 +49,7 @@
 
 ## Architecture Overview
 
-This repository features a **fully decoupled architecture** consisting of a complete **training pipeline** and a **standalone inference engine**.
+This repository features a **fully decoupled architecture** consisting of a complete **training pipeline**, a **standalone inference engine**, and an **interactive web dashboard**.
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────┐
@@ -72,20 +76,39 @@ This repository features a **fully decoupled architecture** consisting of a comp
 │                              ▼                                          │
 │              {"rssi": -108.7, "ood": False}                             │
 └─────────────────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────────────────┐
+│                      WEB DASHBOARD (app.py)                              │
+│                                                                         │
+│  Streamlit + Folium + Plotly                                            │
+│                              │                                          │
+│  ┌──────────────────────────┴──────────────────────────┐               │
+│  │  🗺️ Interactive Map       │  📊 Performance Charts  │               │
+│  │  • Gateway markers        │  • RSSI distribution    │               │
+│  │  • RSSI heatmap           │  • Signal loss curve    │               │
+│  │  • Prediction grid        │  • Box plots per gw     │               │
+│  │  • Terrain overlay        │                         │               │
+│  └──────────────────────────┴──────────────────────────┘               │
+└─────────────────────────────────────────────────────────────────────────┘
 ```
 
 | Component | Directory | Purpose |
 |-----------|-----------|---------|
 | **Training Pipeline** | `src/` | Data fetching (ChirpStack API), cleaning, feature engineering, cross-validation, model serialization |
 | **Inference Engine** | `coverage_predictor/` | Lightweight, importable module — loads a pre-trained model and geospatial assets to predict RSSI at arbitrary lat/lon |
+| **Web Dashboard** | `app.py` | Interactive Streamlit UI — cartographic map (Folium) with gateways, heatmap, predictions and performance charts (Plotly) |
 | **Configuration** | `config.yaml` + `config_loader.py` | Centralized YAML configuration for all paths, radio params, KNN hyperparameters, antenna heights |
 | **Tests** | `tests/` | Pytest suite covering valid predictions, OOD detection, and terrain queries |
-| **Docker** | `Dockerfile` | Multi-stage build: `inference` (minimal), `training` (full), `builder` (intermediate) |
+| **Docker** | `Dockerfile` | Multi-stage build: `inference` (minimal), `web-dashboard` (Streamlit), `training` (full) |
 | **CI** | `.github/workflows/ci.yml` | Automated linting (ruff) + testing (pytest) on push/PR |
 
 ---
 
 ## Key Features
+
+### 🖥️ Interactive Web Dashboard
+A **Streamlit** dashboard with an interactive **Folium** map (gateway markers, RSSI heatmap from real measurements, color-coded prediction grid, land-use overlay) and **Plotly** charts (RSSI distribution, signal loss vs. distance, per-gateway box plots). Designed in **"frozen" mode** — all data is loaded once at startup for instant navigation.
 
 ### 🔮 Out-of-Distribution (OOD) Detection
 Predictions for locations far outside the training region (e.g., Paris, New York) automatically return `{"rssi": None, "ood": True}` instead of producing invalid results. The OOD check uses a **500 km threshold** from the nearest reference point.
@@ -100,10 +123,14 @@ The inference engine uses an abstract `BaseModel` class. Currently implemented w
 The model is loaded from its `.pkl` file **on the first `predict()` call**, not at import time. This allows tests to import the predictor without requiring the model file to exist.
 
 ### 📦 Multi-Stage Docker Build
-Three build stages:
+Four build stages:
 - **`builder`** — compiles all Python dependencies (GDAL, GEOS, PROJ)
 - **`inference`** — minimal image (~500 MB) for production prediction calls
+- **`web-dashboard`** — Streamlit dashboard image on port 8501
 - **`training`** — full environment for running data fetching + model training
+
+### 🐳 Docker Compose
+A `docker-compose.yml` orchestrates all services: `inference` (CLI), `web-dashboard` (Streamlit UI), and `train` (pipeline).
 
 ### ✅ Comprehensive Test Suite
 5 pytest tests covering valid predictions, OOD detection (Paris, New York), and terrain elevation lookups. Tests gracefully skip when model files are absent.
@@ -194,7 +221,19 @@ print(f"OOD: {result['ood']}")
 # OOD: False
 ```
 
-### 7. Run the training pipeline
+### 7. Launch the web dashboard
+
+```bash
+# Local
+streamlit run app.py
+
+# Or with Docker
+docker-compose up web-dashboard
+```
+
+Then open **http://localhost:8501** in your browser.
+
+### 8. Run the training pipeline
 
 ```bash
 cd src
@@ -392,6 +431,64 @@ A dependency-minimized module designed for production deployment. All geospatial
 | `data/terrain/landuse2.geojson` | GeoJSON | OSM land-use polygons — Hai Phong |
 | `model/extra_trees_model.pkl` | Pickle | Trained sklearn pipeline |
 
+### 5. Web Dashboard (`app.py`)
+
+An interactive **Streamlit** application that visualises coverage predictions and reference measurements on a map. Uses **Folium** for the interactive map and **Plotly** for performance charts.
+
+**Dashboard layout:**
+
+```
+┌──────────────────────────────────────────────────┐
+│  📡 Wireless Coverage Prediction Dashboard        │
+├───────────┬──────────────────────────────────────┤
+│ ⚙️        │  🗺️ Coverage Map                      │
+│ Controls  │  • Gateways (red markers)             │
+│           │  • RSSI Heatmap (real data)           │
+│ Region    │  • Prediction Grid (color-coded)      │
+│ Map Layers│  • Terrain overlay (land-use)         │
+│ Stats     │                                       │
+│ Predict   ├──────────────────────────────────────┤
+│ Button    │  📊 Performance Charts                │
+│           │  • RSSI Distribution (histogram)      │
+│           │  • Signal Loss vs Distance (scatter)  │
+│           │  • RSSI per Gateway (box plot)        │
+└───────────┴──────────────────────────────────────┘
+```
+
+**Features:**
+
+| Feature | Description |
+|---------|-------------|
+| 🌍 **Dual regions** | Da Nang and Hai Phong — switch via sidebar selector |
+| 📍 **Gateway markers** | Red WiFi icons with popup showing ID, coordinates, elevation, range |
+| 🔥 **RSSI Heatmap** | Real measured signal strength from reference points |
+| 🎯 **Prediction grid** | Modelled RSSI over a configurable grid (5×5 to 30×30) with color gradient |
+| 🏞️ **Terrain overlay** | Land-use polygons (residential, forest, water, etc.) with colour legend |
+| 📊 **Charts** | RSSI distribution (measured vs predicted), signal loss trend, per-gateway box plots |
+| ⚡ **Frozen mode** | All data loaded once at startup — no recalculations during navigation |
+| ⏱️ **Timeout safety** | Each prediction has a 15-second timeout — slow points are skipped gracefully |
+
+**Controls (sidebar):**
+
+- **Region selector** — switch between Da Nang and Hai Phong
+- **Map layer toggles** — show/hide Gateways, RSSI Heatmap, Prediction Grid, Terrain
+- **Grid resolution slider** — adjust prediction density (5–30 points per axis)
+- **Generate button** — on-demand coverage prediction computation
+
+**Run locally:**
+
+```bash
+streamlit run app.py
+```
+
+**Run with Docker:**
+
+```bash
+docker-compose up web-dashboard
+```
+
+Then open **http://localhost:8501**.
+
 ---
 
 ## 🔮 Inference API Reference
@@ -527,13 +624,13 @@ The preprocessing pipeline includes:
 
 ## 🐳 Docker Deployment
 
-The project includes a **multi-stage Dockerfile** with three build targets:
+The project includes a **multi-stage Dockerfile** with four build targets:
 
 ### Inference Image
 
 Minimal image (~500 MB) containing only the inference engine. Designed for production deployment where predictions are queried via Python API.
 
-```
+```bash
 docker build --target inference -t wireless-coverage-inference:latest .
 ```
 
@@ -545,11 +642,36 @@ Only the terrain directory needs to be mounted — the CSV files (`gateways.csv`
 -v /host/path/to/terrain:/app/coverage_predictor/data/terrain
 ```
 
+### Web Dashboard Image
+
+Streamlit-based interactive dashboard for visualising coverage on a map. Built on top of the inference engine's Python environment.
+
+```bash
+docker build --target web-dashboard -t wireless-coverage-dashboard:latest .
+```
+
+**Mount requirements:**
+
+Same as inference — terrain data must be mounted:
+```bash
+-v /host/path/to/terrain:/app/coverage_predictor/data/terrain
+```
+
+**Run:**
+
+```bash
+docker run -p 8501:8501 \
+  -v /host/path/to/terrain:/app/coverage_predictor/data/terrain:ro \
+  wireless-coverage-dashboard:latest
+```
+
+Then open **http://localhost:8501**.
+
 ### Training Image
 
 Full build environment including API client, processing pipeline, and model training.
 
-```
+```bash
 docker build --target training -t wireless-coverage-training:latest .
 ```
 
@@ -575,6 +697,36 @@ docker run --rm -v /path/to/terrain:/app/coverage_predictor/data/terrain \
 from predictor import predict
 print(predict(16.0735, 108.1512))
 "
+
+# Build and run the web dashboard
+docker build --target web-dashboard -t wireless-coverage-dashboard:test .
+docker run -p 8501:8501 \
+  -v /path/to/terrain:/app/coverage_predictor/data/terrain:ro \
+  wireless-coverage-dashboard:test
+```
+
+### Docker Compose
+
+A `docker-compose.yml` at the project root orchestrates all services:
+
+```yaml
+services:
+  inference:          # CLI prediction engine (portless)
+  web-dashboard:      # Streamlit UI on port 8501
+  train:              # Training pipeline (ephemeral)
+```
+
+**Usage:**
+
+```bash
+# Start the web dashboard
+docker-compose up web-dashboard
+
+# Run a quick inference test
+docker-compose run inference
+
+# Run the training pipeline
+docker-compose run train
 ```
 
 ---
@@ -711,6 +863,8 @@ Wireless-Coverage-Prediction/
 ├── config.yaml                      # Centralized configuration
 ├── config_loader.py                 # YAML config loader (singleton)
 ├── pyproject.toml                   # Project metadata + build config
+├── app.py                           # 🆕 Streamlit web dashboard
+├── docker-compose.yml               # 🆕 Docker Compose (inference, dashboard, train)
 ├── .env.example                     # Template for ChirpStack credentials
 ├── .dockerignore                    # Files excluded from Docker context
 ├── Dockerfile                       # Multi-stage Docker build
