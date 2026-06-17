@@ -67,46 +67,7 @@ CMD echo "✔ Inference engine container ready." \
 
 
 # =============================================================================
-# Stage 3: Web Dashboard — Streamlit UI for interactive coverage maps
-# =============================================================================
-FROM python:3.12-slim AS web-dashboard
-
-ENV DEBIAN_FRONTEND=noninteractive \
-    PYTHONDONTWRITEBYTECODE=1 \
-    PYTHONUNBUFFERED=1
-
-# Runtime geospatial shared libraries
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    libgdal-dev \
-    libgeos-dev \
-    libproj-dev \
-    && rm -rf /var/lib/apt/lists/*
-
-# Copy the full Python environment from builder
-COPY --from=builder /usr/local/lib/python3.12/site-packages /usr/local/lib/python3.12/site-packages
-COPY --from=builder /usr/local/bin /usr/local/bin
-
-# Install dashboard-specific packages
-RUN pip install --no-cache-dir streamlit folium streamlit-folium plotly branca
-
-WORKDIR /app
-
-# Copy inference engine and dashboard code
-COPY coverage_predictor/ ./coverage_predictor/
-COPY config.yaml ./
-COPY config_loader.py ./
-COPY app.py ./
-
-# Declare the terrain data mount point
-VOLUME ["/app/coverage_predictor/data/terrain"]
-
-EXPOSE 8501
-
-CMD ["streamlit", "run", "app.py", "--server.port=8501", "--server.address=0.0.0.0"]
-
-
-# =============================================================================
-# Stage 4: Training — full build environment for running src/main.py
+# Stage 3: Training — full build environment for running src/main.py
 #           Includes the API client, processing pipeline, and training logic.
 # =============================================================================
 FROM builder AS training
