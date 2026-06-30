@@ -3,3 +3,4 @@ src/ml/models/random_forest_model.pkl
 .vscode/settings.json
 __pycache__/
 *.pyc
+.aider*
