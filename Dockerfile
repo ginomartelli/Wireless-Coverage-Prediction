@@ -87,3 +87,43 @@ VOLUME ["/app/data"]
 WORKDIR /app/src
 
 CMD ["python", "main.py"]
+
+
+# =============================================================================
+# Stage 4: Dashboard — Streamlit web dashboard for coverage visualisation
+#           Serves the interactive map dashboard on port 8501.
+# =============================================================================
+FROM python:3.12-slim AS dashboard
+
+ENV DEBIAN_FRONTEND=noninteractive \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1
+
+# Runtime geospatial shared libraries
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libgdal-dev \
+    libgeos-dev \
+    libproj-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy the full Python environment from builder
+COPY --from=builder /usr/local/lib/python3.12/site-packages /usr/local/lib/python3.12/site-packages
+COPY --from=builder /usr/local/bin /usr/local/bin
+
+WORKDIR /app
+
+# Copy the application code
+COPY app.py ./
+COPY config.yaml ./
+COPY config_loader.py ./
+COPY coverage_predictor/ ./coverage_predictor/
+
+# Declare mount points
+VOLUME ["/app/coverage_predictor/data/terrain"]
+
+EXPOSE 8501
+
+HEALTHCHECK --interval=30s --timeout=10s --start-period=15s --retries=3 \
+    CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8501/_stcore/health')"
+
+CMD ["streamlit", "run", "app.py", "--server.port=8501", "--server.address=0.0.0.0", "--server.headless=true"]

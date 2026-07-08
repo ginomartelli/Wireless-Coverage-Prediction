@@ -39,6 +39,31 @@ services:
       "
 
   # ---------------------------------------------------------------------------
+  # Dashboard Service (Streamlit)
+  # ---------------------------------------------------------------------------
+  # Interactive web dashboard with two maps:
+  #   - Map 1: Historical / observed coverage data
+  #   - Map 2: ML-predicted coverage heatmap
+  #
+  # Access at http://localhost:8501
+  # ---------------------------------------------------------------------------
+  web-dashboard:
+    build:
+      context: .
+      target: dashboard
+      dockerfile: Dockerfile
+    image: wireless-coverage-dashboard:latest
+    container_name: coverage-dashboard
+    ports:
+      - "8501:8501"
+    volumes:
+      - ./data/terrain:/app/coverage_predictor/data/terrain:ro
+    environment:
+      - PYTHONDONTWRITEBYTECODE=1
+      - PYTHONUNBUFFERED=1
+    restart: unless-stopped
+
+  # ---------------------------------------------------------------------------
   # Training Service
   # ---------------------------------------------------------------------------
   # Full pipeline that:
