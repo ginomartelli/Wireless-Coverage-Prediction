@@ -78,9 +78,10 @@ This repository features a **fully decoupled architecture** consisting of a comp
 |-----------|-----------|---------|
 | **Training Pipeline** | `src/` | Data fetching (ChirpStack API), cleaning, feature engineering, cross-validation, model serialization |
 | **Inference Engine** | `coverage_predictor/` | Lightweight, importable module — loads a pre-trained model and geospatial assets to predict RSSI at arbitrary lat/lon |
+| **Dashboard** | `app.py` | Streamlit web dashboard with 2 interactive maps (historical + predictive coverage) |
 | **Configuration** | `config.yaml` + `config_loader.py` | Centralized YAML configuration for all paths, radio params, KNN hyperparameters, antenna heights |
 | **Tests** | `tests/` | Pytest suite covering valid predictions, OOD detection, and terrain queries |
-| **Docker** | `Dockerfile` | Multi-stage build: `inference` (minimal), `training` (full), `builder` (intermediate) |
+| **Docker** | `Dockerfile` | Multi-stage build: `inference` (minimal), `training` (full), `dashboard` (Streamlit), `builder` (intermediate) |
 | **CI** | `.github/workflows/ci.yml` | Automated linting (ruff) + testing (pytest) on push/PR |
 
 ---
@@ -194,7 +195,23 @@ print(f"OOD: {result['ood']}")
 # OOD: False
 ```
 
-### 7. Run the training pipeline
+### 7. Launch the interactive dashboard
+
+```bash
+streamlit run app.py
+```
+
+Then open [http://localhost:8501](http://localhost:8501) in your browser. The dashboard shows:
+- **🗺️ Carte 1** — Historical coverage data heatmap
+- **🧠 Carte 2** — ML-predicted coverage heatmap (from `coverage.csv`)
+- **Filtre par Gateway** — Isoler une gateway spécifique
+- **Légende RSSI** — Code couleur strict (rouge > -100 dBm → bleu < -120 dBm)
+
+> **Note :** La Carte 2 utilise `coverage_predictor/data/coverage.csv` qui doit exister. Ce fichier est commité dans le repository — pas besoin de le regénérer.
+
+---
+
+### 8. Run the training pipeline
 
 ```bash
 cd src
@@ -379,8 +396,8 @@ A dependency-minimized module designed for production deployment. All geospatial
 | `feature_builder.py` | **On-the-fly feature construction** — gateway selection (auto or specified), geometry, terrain, and KNN features for a single lat/lon point. |
 | `neighbor_features.py` | **KDTree spatial queries** — builds per-gateway KDTrees from reference points. `closest_reference_point()` and `compute_neighbor_features()`. |
 | `terrain.py` | **Raster I/O** — same terrain logic as training but optimized for single-point queries. |
-
-**Data files:**
+| `plot.py` | **Génère la grille de prédiction** — matplotlib + contextily. Exécuté avec `PREDICT=True` pour produire `coverage.csv`. |
+| `data/coverage.csv` | Pre-computed prediction grid (2 448 points, pas 0.005°) for the Da Nang area — powers the dashboard maps. **Doit être commitée dans git** pour que le dashboard fonctionne sans le modèle ML. |
 
 | File | Format | Description |
 |------|--------|-------------|
@@ -390,6 +407,7 @@ A dependency-minimized module designed for production deployment. All geospatial
 | `data/terrain/dem2.tif` | GeoTIFF | SRTM DEM — Hai Phong region |
 | `data/terrain/landuse.geojson` | GeoJSON | OSM land-use polygons — Da Nang |
 | `data/terrain/landuse2.geojson` | GeoJSON | OSM land-use polygons — Hai Phong |
+| `data/coverage.csv` | CSV | Pre-computed prediction grid for the dashboard |
 | `model/extra_trees_model.pkl` | Pickle | Trained sklearn pipeline |
 
 ---
@@ -562,11 +580,22 @@ docker build --target training -t wireless-coverage-training:latest .
 
 Intermediate stage used to compile all Python dependencies (GDAL, GEOS, PROJ). Never run directly.
 
+### Dashboard Image
+
+Streamlit web dashboard for interactive coverage visualisation. Serves two maps on port 8501.
+
+```
+docker build --target dashboard -t wireless-coverage-dashboard:latest .
+```
+
 ### Building & Running
 
 ```bash
 # Build the inference image
 docker build --target inference -t wireless-coverage-inference:test .
+
+# Build the dashboard image
+docker build --target dashboard -t wireless-coverage-dashboard:latest .
 
 # Run a prediction inside the container (with terrain data mounted)
 docker run --rm -v /path/to/terrain:/app/coverage_predictor/data/terrain \
@@ -575,7 +604,26 @@ docker run --rm -v /path/to/terrain:/app/coverage_predictor/data/terrain \
 from predictor import predict
 print(predict(16.0735, 108.1512))
 "
+
+# Run the dashboard (requires terrain mount for Map 2 fallback)
+docker run --rm -p 8501:8501 \
+  -v /path/to/terrain:/app/coverage_predictor/data/terrain \
+  wireless-coverage-dashboard:latest
 ```
+
+### Docker Compose
+
+```bash
+# Run only the dashboard (no .env file needed — standalone)
+docker compose up web-dashboard
+
+# Or build & start all services (requires .env for inference/train)
+cp .env.example .env      # fill in your ChirpStack credentials
+vim .env
+docker compose up -d
+```
+
+> **Note :** Seul le service `web-dashboard` ne nécessite pas de fichier `.env`. Les services `inference` et `train` en ont besoin pour l'accès à l'API ChirpStack.
 
 ---
 
@@ -710,6 +758,7 @@ Wireless-Coverage-Prediction/
 ├── requirements.txt                 # Pinned Python dependencies
 ├── config.yaml                      # Centralized configuration
 ├── config_loader.py                 # YAML config loader (singleton)
+├── app.py                           # Streamlit dashboard
 ├── pyproject.toml                   # Project metadata + build config
 ├── .env.example                     # Template for ChirpStack credentials
 ├── .dockerignore                    # Files excluded from Docker context
@@ -721,11 +770,12 @@ Wireless-Coverage-Prediction/
 │   ├── feature_builder.py           # Single-point feature construction
 │   ├── neighbor_features.py         # KDTree spatial search
 │   ├── terrain.py                   # Raster I/O (DEM, land-use)
-│   ├── predicted_coverage.csv       # Sample coverage output (optional)
+│   ├── plot.py                      # Matplotlib visualisation helper
 │   │
 │   ├── data/
 │   │   ├── gateways.csv             # Gateway registry
 │   │   ├── reference_points.csv     # Historical measurements
+│   │   ├── coverage.csv             # Pre-computed prediction grid
 │   │   └── terrain/                 # Geospatial rasters (gitignored)
 │   │       ├── dem1.tif
 │   │       ├── dem2.tif
