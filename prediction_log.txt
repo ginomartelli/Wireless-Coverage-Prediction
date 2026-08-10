@@ -1,0 +1,33 @@
+Loading ML predictor…
+[config_loader] Loaded configuration from C:\Users\Luka\Documents\DNIIT_project\Wireless-Coverage-Prediction\config.yaml
+  Model loaded in 0.2s
+Grid: 51 lat × 48 lon = 2448 points
+Gateway filter: ALL
+Model loaded successfully from C:\Users\Luka\Documents\DNIIT_project\Wireless-Coverage-Prediction\coverage_predictor\model/extra_trees_model.pkl
+  [122/2448] 5%  17.6 pts/s  ETA: 132s
+  [244/2448] 10%  34.7 pts/s  ETA: 63s
+  [366/2448] 15%  51.4 pts/s  ETA: 41s
+  [488/2448] 20%  67.3 pts/s  ETA: 29s
+  [610/2448] 25%  83.0 pts/s  ETA: 22s
+  [732/2448] 30%  97.7 pts/s  ETA: 18s
+  [854/2448] 35%  0.8 pts/s  ETA: 2048s
+  [976/2448] 40%  0.0 pts/s  ETA: 121128s
+  [1098/2448] 45%  0.0 pts/s  ETA: 104646s
+  [1220/2448] 50%  0.0 pts/s  ETA: 88220s
+  [1342/2448] 55%  0.0 pts/s  ETA: 221585s
+  [1464/2448] 60%  0.0 pts/s  ETA: 182641s
+  [1586/2448] 65%  0.0 pts/s  ETA: 148758s
+  [1708/2448] 70%  0.0 pts/s  ETA: 119482s
+  [1830/2448] 75%  0.0 pts/s  ETA: 93665s
+  [1952/2448] 80%  0.0 pts/s  ETA: 93328s
+  [2074/2448] 85%  0.0 pts/s  ETA: 66369s
+  [2196/2448] 90%  0.0 pts/s  ETA: 42436s
+  [2318/2448] 95%  0.0 pts/s  ETA: 20870s
+  [2440/2448] 100%  0.0 pts/s  ETA: 1227s
+Traceback (most recent call last):
+  File "C:\Users\Luka\Documents\DNIIT_project\Wireless-Coverage-Prediction\precompute_predictions.py", line 131, in <module>
+  File "C:\Users\Luka\Documents\DNIIT_project\Wireless-Coverage-Prediction\precompute_predictions.py", line 119, in main
+  File "C:\Users\Luka\AppData\Local\Programs\Python\Python312\Lib\encodings\cp1252.py", line 19, in encode
+    return codecs.charmap_encode(input,self.errors,encoding_table)[0]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+UnicodeEncodeError: 'charmap' codec can't encode character '\u2705' in position 2: character maps to <undefined>
